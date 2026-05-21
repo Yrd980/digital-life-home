@@ -64,25 +64,14 @@ The contract:
 - Bottles let the room speak to its future self.
 - Bridge turns host/board communication into an embodied ritual rather than a naked remote shell.
 - Bridge Flash gives the web room a fast reflex so not every touch becomes a long model turn.
+- The web cockpit makes the current heading, next action, body state, and tool-arm routes visible before any menu diving.
 - Seal prevents endless meta-planning by turning one goal into a visible course.
 
 This keeps self-evolution inspectable without making it timid.
 
 ## External Radar
 
-`last30days` is installed under:
-
-```text
-/root/.hermes/skills/last30days-skill
-```
-
-Hermes security scan did not enable it as a trusted skill automatically, so Pocket Soul treats it as a controlled external radar engine.
-
-```bash
-./scripts/last30days.sh "AI companion cyberdeck"
-```
-
-This can be slow on the board. Use it for deeper research, not every heartbeat.
+Use host-side DeerFlow/opencli for deeper research, then bring back distilled cards or rituals. The board keeps only the lightweight static radar path.
 
 ## Network Recovery
 
@@ -96,11 +85,11 @@ That script installs Clash from the provided proxy repo and subscription only wh
 
 ## Next Evolution Ideas
 
-- Add a web button that calls `pocket-bridge` asynchronously and streams the turn into the room.
 - Let heartbeat choose or remix the daily quest.
-- Let web room show evolution history.
+- Let web cockpit show evolution history.
 - Add a nightly summary ritual.
 - Add Soul Card QR export/import.
 - Let Hermes propose code changes, then ask Codex to implement them.
 - Feed host-side DeerFlow/opencli research cards into `state/radar-*.md`.
 - Add a Codex app-server bridge for live work events in the web room.
+- Stream full Bridge output into the cockpit instead of waiting for the completed turn.

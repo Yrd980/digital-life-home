@@ -6,8 +6,7 @@ export PATH="$PATH:/usr/games"
 if [[ "${1:-}" == "--list" || -z "${1:-}" ]]; then
   python3 - <<'PY'
 import pocket_soul
-for name, command, argv, desc in pocket_soul.available_toys():
-    print(f"{name:10} {command:16} {desc}")
+print(pocket_soul.toy_menu_text())
 PY
   exit 0
 fi

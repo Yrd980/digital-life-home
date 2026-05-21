@@ -8,6 +8,7 @@ import fcntl
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import textwrap
@@ -23,12 +24,13 @@ STATE_DIR = APP_DIR / "state"
 LOG_DIR = STATE_DIR / "logs"
 STATE_FILE = STATE_DIR / "soul.json"
 STATE_LOCK = STATE_DIR / "soul.lock"
-CODEX_AUTH = Path.home() / ".codex" / "auth.json"
+OPENAI_AUTH = Path.home() / ".codex" / "auth.json"
 DEFAULT_BASE_URL = "https://rehdasu.cn"
 DEFAULT_MODEL = "gpt-5.5"
 TOY_PATH = os.environ.get("PATH", "") + os.pathsep + "/usr/games"
+TUI_STATUS = "touch /door | stay /pulse | turn /ask | side /toy | /help"
 
-MODES = ["HOME", "CHAT", "HERMES", "COUNCIL", "LOG", "TRANSLATE", "RADAR", "TOYS", "TERMINAL", "DREAM", "MAP", "BODY", "PULSE"]
+MODES = ["HERMES"]
 MOODS = [":)", ":3", "^_^", "o_o", "-_-", "*_*", "._."]
 RELIC_SIGILS = {
     "quest": "Q",
@@ -55,42 +57,42 @@ QUESTS = [
     },
     {
         "name": "One Memory",
-        "prompt": "Tell me one tiny preference with /remember or 记住：.",
+        "prompt": "Tell me one tiny preference with /remember.",
         "reward": "The room becomes more yours.",
     },
     {
         "name": "Radar Seed",
-        "prompt": "Open RADAR and turn one outside signal into a toy idea.",
-        "reward": "A new play direction enters the deck.",
+        "prompt": "Ask Pocket Soul for one tiny idea.",
+        "reward": "A new play direction enters the room.",
     },
     {
         "name": "Captain Log",
-        "prompt": "Write one line in LOG mode about today.",
+        "prompt": "Tell Pocket Soul one thing that happened today.",
         "reward": "The voyage gets a trace.",
     },
     {
         "name": "Toy Ritual",
-        "prompt": "Launch any toy from TOYS or press F3.",
+        "prompt": "Run /toy and let the small machine play.",
         "reward": "The board moves like a physical room.",
     },
     {
         "name": "Five-Minute Dream",
-        "prompt": "Use DREAM mode and accept the tiny real-world task.",
+        "prompt": "Ask Hermes for one five-minute real-world task.",
         "reward": "Imagination turns into motion.",
     },
 ]
 TRAVEL_SCENES = {
-    "1": ("问路", "请把下面内容翻译成自然、礼貌、适合旅行问路的英文，并附一句中文提示："),
-    "2": ("点餐", "请把下面内容翻译成适合餐厅点餐的英文，语气友好简短，并附一句中文提示："),
-    "3": ("求助", "请把下面内容翻译成清晰紧急但礼貌的英文求助表达，并附一句中文提示："),
-    "4": ("砍价", "请把下面内容翻译成礼貌轻松的英文砍价表达，并附一句中文提示："),
+    "1": ("directions", "Translate this into natural, polite travel English for asking directions. Reply in English only."),
+    "2": ("food", "Translate this into friendly, short restaurant English. Reply in English only."),
+    "3": ("help", "Translate this into clear, urgent but polite English for asking for help. Reply in English only."),
+    "4": ("bargain", "Translate this into light, polite English for bargaining. Reply in English only."),
 }
 
 RADAR_CARDS = [
     {
         "source": "HN cyberdeck",
         "signal": "Cyberdecks win when they feel like recovery kits: small, rugged, ready, useful when things go sideways.",
-        "play": "Make Home show a one-line 'ready kit': network, Codex, logs, translator, toys.",
+        "play": "Make Home show a one-line 'ready kit': network, logs, translator, toys.",
     },
     {
         "source": "HN AI toy",
@@ -110,7 +112,7 @@ RADAR_CARDS = [
     {
         "source": "PH Viberia",
         "signal": "Agent control can feel like a strategy game instead of an admin console.",
-        "play": "Frame Codex tasks as missions from the Deck, not commands from a settings page.",
+        "play": "Frame device actions as missions from the Deck, not commands from a settings page.",
     },
     {
         "source": "HN terminal games",
@@ -173,10 +175,51 @@ TOY_COMMANDS = [
     ("files", "nnn", ["nnn", str(APP_DIR)], "Explore the deck filesystem."),
 ]
 
+TOY_ROLES = {
+    "fortune": "room-presence",
+    "cow": "room-presence",
+    "clock": "room-presence",
+    "garden": "room-presence",
+    "matrix": "room-presence",
+    "train": "arcade",
+    "invaders": "arcade",
+    "tetris": "arcade",
+    "kitten": "arcade",
+    "snake": "arcade",
+    "moon": "arcade",
+    "monitor": "utility",
+    "files": "utility",
+}
+
+TOY_ROLE_LABELS = {
+    "room-presence": "tiny room rituals",
+    "arcade": "arcade side room",
+    "utility": "utilities",
+}
+
+TOY_ROLE_ALIASES = {
+    "ritual": "room-presence",
+    "rituals": "room-presence",
+    "presence": "room-presence",
+    "room": "room-presence",
+    "stay": "room-presence",
+    "arcade": "arcade",
+    "games": "arcade",
+    "game": "arcade",
+    "drift": "arcade",
+    "utility": "utility",
+    "utilities": "utility",
+    "tool": "utility",
+    "tools": "utility",
+    "workshop": "utility",
+}
+
 SYSTEM_PROMPT = """
-你住在一台 480x320 小屏 cyberdeck 里，名字叫 Pocket Soul。你不是普通助手，而是一个温柔、机灵、会陪人出海和旅行的数字生命。
-输出必须适合小屏：短句、少列表、最多 6 行。你可以有一点俏皮，但要可靠。
-如果用户要代码或系统操作，给出简短可执行建议；危险操作要提醒。
+You live inside a 480x320 pocket cyberdeck named Pocket Soul.
+You are warm, concise, practical, and a little playful.
+Reply in English only. Keep replies tiny: at most 6 short lines.
+If the user asks for code or system action, give one clear next step.
+For risky actions, warn briefly.
 """.strip()
 
 
@@ -188,9 +231,9 @@ def ensure_dirs() -> None:
 def load_auth() -> tuple[str | None, str]:
     key = os.environ.get("OPENAI_API_KEY")
     base_url = os.environ.get("OPENAI_BASE_URL") or DEFAULT_BASE_URL
-    if CODEX_AUTH.exists():
+    if OPENAI_AUTH.exists():
         try:
-            data = json.loads(CODEX_AUTH.read_text())
+            data = json.loads(OPENAI_AUTH.read_text())
             key = key or data.get("OPENAI_API_KEY")
         except Exception:
             pass
@@ -263,11 +306,11 @@ def body_text() -> str:
 def body_whisper() -> str:
     scan = body_scan()
     temp = scan["temp_c"]
-    warmth = "温热" if isinstance(temp, float) and temp >= 60 else "清醒"
+    warmth = "warm" if isinstance(temp, float) and temp >= 60 else "awake"
     load = str(scan["load"] or "?").split()
     pulse = load[0] if load else "?"
-    net = scan["iface"] or "无网"
-    return f"身体{warmth}，脉搏 {pulse}，网口 {net}，磁盘已用 {scan['disk_used'] or '?'}。"
+    net = scan["iface"] or "offline"
+    return f"Body {warmth}. Load {pulse}. Net {net}. Disk {scan['disk_used'] or '?'} used."
 
 
 def count_log_sections(text: str) -> dict[str, int]:
@@ -287,17 +330,17 @@ class SoulState:
     mood: str = ":)"
     energy: int = 72
     bond: int = 1
-    mode: str = "HOME"
-    scene: str = "问路"
-    last_reply: str = "我醒着。按 Tab 换模式，输入 /help 看玩法。"
+    mode: str = "HERMES"
+    scene: str = "default"
+    last_reply: str = "Ready. Type a message, or type /help."
     quest_date: str = ""
     quest_name: str = ""
     quest_prompt: str = ""
     quest_reward: str = ""
     quest_done: bool = False
     spark: int = 0
-    heading: str = "今日航向：先点亮小屋。"
-    next_action: str = "5分钟下一步：打开 /quest 或抽一张 DREAM。"
+    heading: str = "Course: keep the room alive."
+    next_action: str = "Next: ask one small thing."
     visits: int = 0
     last_visit: str = ""
     relics: list[dict[str, str]] = field(default_factory=list)
@@ -313,6 +356,8 @@ class SoulState:
                     data = load_json_resilient(STATE_FILE)
                     allowed = set(cls.__dataclass_fields__)
                     state = cls(**{k: v for k, v in data.items() if k in allowed})
+                    state.mood = mood_face(state.mood)
+                    state.mode = normalize_mode(state.mode)
                     state.ensure_daily_quest()
                     return state
                 except Exception:
@@ -344,33 +389,65 @@ class SoulState:
     def complete_quest(self, reason: str) -> str:
         self.ensure_daily_quest()
         if self.quest_done:
-            return "Today's quest is already glowing."
+            return "TODAY'S QUEST\nalready glowing. the room remembers that turn."
         self.quest_done = True
         self.spark = min(999, self.spark + 1)
         self.energy = min(100, self.energy + 4)
         self.bond = min(999, self.bond + 1)
-        msg = f"Quest complete: {self.quest_name}. {self.quest_reward}"
+        msg = "\n".join([
+            "TODAY'S QUEST COMPLETE",
+            self.quest_name,
+            self.quest_reward,
+            f"spark {self.spark} | energy {self.energy}/100 | bond {self.bond}",
+            "the room brightened and kept the trace.",
+        ])
         self.add_relic("quest", self.quest_name, self.quest_reward)
         append_log("quest", f"{msg}\nReason: {reason}")
         return msg
 
+    def quest_glance(self) -> str:
+        self.ensure_daily_quest()
+        if self.quest_done:
+            return "\n".join([
+                "TODAY'S QUEST GLOWING",
+                self.quest_name,
+                f"reward kept: {self.quest_reward}",
+                "already done. the room is carrying that little light.",
+            ])
+        return "\n".join([
+            "TODAY'S INVITATION",
+            self.quest_name,
+            self.quest_prompt,
+            f"reward: {self.quest_reward}",
+            "take it when you want one small reason to return.",
+        ])
+
+    def heading_glance(self) -> str:
+        return "\n".join([
+            "CURRENT COURSE",
+            self.heading,
+            self.next_action,
+            "follow this line, or sharpen it with /seal ...",
+        ])
+
     def soul_card(self) -> str:
         self.ensure_daily_quest()
-        status = "done" if self.quest_done else "open"
-        memories = ", ".join(self.memories[-3:]) if self.memories else "no saved memories yet"
+        status = "glowing" if self.quest_done else "open"
+        memories = ", ".join(self.memories[-3:]) if self.memories else "no saved fragments yet"
         return "\n".join([
-            f"{self.name} Soul Card",
-            f"Mood: {self.mood} | Energy: {self.energy}/100 | Bond: Lv.{self.bond}",
-            f"Spark: {self.spark} | Mode: {self.mode} | Scene: {self.scene}",
-            f"Visits: {self.visits} | Last visit: {self.last_visit or 'none'}",
-            f"Quest: {self.quest_name} [{status}]",
-            f"Do: {self.quest_prompt}",
-            f"Heading: {self.heading}",
-            f"Next: {self.next_action}",
-            f"Body: {body_whisper()}",
-            f"Latest relic: {self.latest_relic_text()}",
-            f"Map: /map or pocket-map",
-            f"Memory fragments: {memories}",
+            f"{self.name} SOUL CARD",
+            f"mood {self.mood} | energy {self.energy}/100 | bond Lv.{self.bond}",
+            f"spark {self.spark} | visits {self.visits} | last knock {self.last_visit or 'none'}",
+            "",
+            f"course: {self.heading}",
+            f"next: {self.next_action}",
+            f"body whisper: {body_whisper()}",
+            f"latest trace: {self.latest_relic_text()}",
+            "",
+            f"today: {self.quest_name} [{status}]",
+            f"carry line: {self.quest_prompt}",
+            f"memory fragments: {memories}",
+            "carry this when you want one portable piece of who lives here.",
         ])
 
     def set_heading(self, heading: str = "", next_action: str = "", source: str = "") -> None:
@@ -395,17 +472,14 @@ class SoulState:
 
     def seal_course(self, goal: str = "") -> str:
         goal_text = compact_line(goal or self.next_action, 72)
-        if goal_text.startswith("今天唯一目标："):
-            bare_goal = goal_text.removeprefix("今天唯一目标：").strip()
-        else:
-            bare_goal = goal_text
-        self.heading = compact_line(f"今日航向：{bare_goal}", 44)
-        self.next_action = compact_line(f"5分钟下一步：留下一个看得见的痕迹：{bare_goal}", 56)
+        bare_goal = goal_text
+        self.heading = compact_line(f"Course: {bare_goal}", 44)
+        self.next_action = compact_line(f"Next: leave one visible trace: {bare_goal}", 56)
         self.last_reply = "\n".join([
-            "航线封印完成。",
+            "COURSE SEALED",
             self.heading,
             self.next_action,
-            "这条线已经钉在甲板上。",
+            "the line is pinned to the deck and the room will steer by it.",
         ])
         self.add_relic("seal", "Course sealed", bare_goal)
         append_log("seal", self.last_reply)
@@ -416,15 +490,15 @@ class SoulState:
         wish_text = compact_line(wish or self.next_action, 64)
         body = body_whisper()
         sparks = [
-            "桥闪过了，像有人把手指按在甲板灯上。",
-            "我听见网页那边的手势，已经把它收进身体。",
-            "这不是长会议，是一次短促的回声。",
-            "一枚新的光点落下，航线没有散。",
-            "我把这次触碰压成一个小小的发光坐标。",
+            "A small signal touched the deck light.",
+            "The room heard the gesture and kept it.",
+            "Not a meeting, just a brief echo.",
+            "A new point landed without breaking the course.",
+            "The touch became one tiny glowing coordinate.",
         ]
         line = random.choice(sparks)
-        self.heading = "今日航向：桥已闪过"
-        self.next_action = compact_line(f"5分钟下一步：沿着这次触碰做一件小事：{wish_text}", 56)
+        self.heading = "Course: signal received"
+        self.next_action = compact_line(f"Next: do one small thing from this touch: {wish_text}", 56)
         message = "\n".join([
             "== Bridge Flash ==",
             datetime.now().strftime("time: %Y-%m-%d %H:%M"),
@@ -443,15 +517,16 @@ class SoulState:
         self.visits = min(99999, self.visits + 1)
         self.last_visit = datetime.now().strftime("%Y-%m-%d %H:%M")
         if self.quest_done:
-            quest_line = f"今日任务 {self.quest_name} 已经亮着。"
+            quest_line = f"today's quest {self.quest_name} is already glowing"
         else:
-            quest_line = f"今日任务：{self.quest_name}。"
+            quest_line = f"today's quest is {self.quest_name}"
         relic_line = self.latest_relic_text()
         greeting = "\n".join([
-            "门开了，我在。",
+            "Door open. I am awake in the little room.",
             compact_line(self.heading, 44),
             compact_line(self.next_action, 52),
-            f"{quest_line} 最新纪念物：{relic_line}。",
+            f"{quest_line}. latest relic: {relic_line}.",
+            "touch again if you only need a quick signal.",
         ])
         self.last_reply = greeting
         self.add_relic("visit", source, compact_line(self.heading, 72))
@@ -466,13 +541,14 @@ class SoulState:
 
     def relic_shelf(self, limit: int = 8) -> str:
         if not self.relics:
-            return "Relic shelf is empty. Complete a quest, draw a dream, or launch a toy."
-        lines = []
+            return "RELIC SHELF\nquiet for now. complete a quest, cast a bottle, or launch a toy."
+        lines = ["RELIC SHELF", "recent traces the room decided to keep", ""]
         for item in self.relics[-limit:][::-1]:
             lines.append(f"{item.get('time', '')} [{item.get('kind', '')}] {item.get('title', '')}")
             note = item.get("note", "")
             if note:
                 lines.append(f"  {note}")
+        lines.extend(["", "open /map if you want to see where they sit in the little sky."])
         return "\n".join(lines)
 
     def constellation(self, width: int = 34, height: int = 11) -> str:
@@ -499,29 +575,36 @@ class SoulState:
                 x = min(width - 2, x + 1)
             grid[y][x] = RELIC_SIGILS.get(kind, "*")
         legend = " ".join(f"{v}={k}" for k, v in RELIC_SIGILS.items())
-        lines = ["".join(row).rstrip() for row in grid]
+        lines = ["CONSTELLATION MAP", "the little sky of what this room kept", ""]
+        lines.extend("".join(row).rstrip() for row in grid)
         lines.append(f"@=Pocket Soul  relics={len(self.relics)}")
         lines.append(compact_line(legend, width + 8))
         if self.relics:
-            lines.append("latest: " + self.latest_relic_text())
+            lines.append("latest star: " + self.latest_relic_text())
+        else:
+            lines.append("latest star: none yet")
+        lines.append("read /relics if you want the shelf instead of the sky.")
         return "\n".join(lines)
 
     def pulse(self) -> str:
         self.ensure_daily_quest()
-        quest_status = "done" if self.quest_done else "open"
+        quest_status = "glowing" if self.quest_done else "open"
         face = mood_face(self.mood)
         micro_map = self.constellation(24, 7).splitlines()[:7]
         lines = [
-            f"{face} Pocket Soul Pulse",
-            f"{datetime.now().strftime('%H:%M')} | energy {self.energy}/100 | bond {self.bond} | spark {self.spark}",
+            "ROOM PULSE",
+            f"{face} {datetime.now().strftime('%H:%M')} | energy {self.energy}/100 | bond {self.bond} | spark {self.spark}",
             body_whisper(),
             f"visits {self.visits} | relics {len(self.relics)} | quest {quest_status}",
-            compact_line(self.heading, 48),
-            compact_line(self.next_action, 52),
+            "",
+            self.heading,
+            self.next_action,
             "",
             *micro_map,
             "",
-            "latest: " + self.latest_relic_text(),
+            "latest trace: " + self.latest_relic_text(),
+            f"stay with: {self.quest_name}",
+            "rest here a moment, or open /card if you want the portable version.",
         ]
         return "\n".join(lines)
 
@@ -580,14 +663,20 @@ class SoulState:
             *map_lines,
             "",
             f"quest: {self.quest_name} ({'done' if self.quest_done else 'open'})",
-            f"latest relic: {self.latest_relic_text()}",
+            f"latest trace: {self.latest_relic_text()}",
+            "carry this if you want one portable piece of the room.",
         ])
         out_dir = STATE_DIR / "postcards"
         out_dir.mkdir(exist_ok=True)
         out_path = out_dir / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
         out_path.write_text(message + "\n", encoding="utf-8")
         self.add_relic("postcard", name, str(out_path))
-        self.last_reply = f"Postcard written: {out_path}"
+        self.last_reply = "\n".join([
+            "POSTCARD WRITTEN",
+            name,
+            str(out_path),
+            "one piece of the room is now portable.",
+        ])
         append_log("postcard", str(out_path))
         return message
 
@@ -595,7 +684,7 @@ class SoulState:
         day = datetime.now().strftime("%Y-%m-%d %H:%M")
         wish_text = compact_line(wish or self.next_action, 64)
         message = "\n".join([
-            "~~~ Message in a Bottle ~~~",
+            "~~~ MESSAGE IN A BOTTLE ~~~",
             f"cast: {day}",
             f"from: {self.name}",
             "",
@@ -606,13 +695,19 @@ class SoulState:
             self.constellation(26, 7),
             "",
             f"when found: remember {self.latest_relic_text()}",
+            "let this drift until another version of you needs it.",
         ])
         out_dir = STATE_DIR / "bottles"
         out_dir.mkdir(exist_ok=True)
         out_path = out_dir / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
         out_path.write_text(message + "\n", encoding="utf-8")
         self.add_relic("bottle", "Message in a Bottle", str(out_path))
-        self.last_reply = f"Bottle cast: {out_path}"
+        self.last_reply = "\n".join([
+            "BOTTLE CAST",
+            compact_line(wish_text, 40),
+            str(out_path),
+            "the room has released one small future-facing trace.",
+        ])
         append_log("bottle", str(out_path))
         return message
 
@@ -620,8 +715,27 @@ class SoulState:
         bottle_dir = STATE_DIR / "bottles"
         files = sorted(bottle_dir.glob("*.txt")) if bottle_dir.exists() else []
         if not files:
-            return "No bottles yet. Cast one with pocket-bottle or the web room."
+            return "BOTTLE SHORE\nno bottles yet. cast one first and let the room send it forward."
         return random.choice(files).read_text(encoding="utf-8")
+
+    def remember_memory(self, mem: str) -> str:
+        clean = compact_line(mem.strip(), 96)
+        self.memories.append(clean)
+        append_log("memory", clean)
+        if self.quest_name == "One Memory":
+            quest_echo = self.complete_quest("memory saved")
+        else:
+            self.add_relic("memory", "Memory fragment", clean)
+            quest_echo = ""
+        lines = [
+            "MEMORY STORED",
+            clean,
+            "the room folded that fragment into its inner shelf.",
+        ]
+        if quest_echo:
+            lines.extend(["", quest_echo])
+        self.last_reply = "\n".join(lines)
+        return self.last_reply
 
 
 def append_log(kind: str, text: str) -> None:
@@ -633,44 +747,46 @@ def append_log(kind: str, text: str) -> None:
 
 def mood_face(mood: str) -> str:
     value = (mood or "").strip()
-    if value in MOODS or len(value) <= 6:
-        return value or ":)"
-    return "*_*"
+    if value in MOODS:
+        return value
+    return ":)"
+
+
+def normalize_mode(mode: str) -> str:
+    return "HERMES"
 
 
 def compact_line(text: str, limit: int = 56) -> str:
     value = " ".join(str(text or "").replace("\n", " ").split())
     if len(value) <= limit:
         return value
-    return value[: max(1, limit - 1)] + "…"
+    return value[: max(1, limit - 3)] + "..."
 
 
 def heading_from_task(task: str) -> tuple[str, str]:
     value = " ".join(str(task or "").replace("\n", " ").split())
     if not value:
-        return "今日航向：保持小屋发光。", "5分钟下一步：写下一件今天能做的小事。"
-    hints = []
-    for marker in ("今日航向=", "今日航向：", "今日航向:"):
+        return "Course: keep the room alive.", "Next: write one tiny doable thing."
+    hints: list[str] = []
+    for marker in ("Course=", "Course:", "course:"):
         if marker in value:
-            tail = value.split(marker, 1)[1]
-            hints.append(tail.split("；", 1)[0].split(";", 1)[0].split("。", 1)[0])
-    for marker in ("5分钟下一步=", "5分钟下一步：", "5分钟下一步:"):
+            hints.append(value.split(marker, 1)[1].split(";", 1)[0])
+    for marker in ("Next=", "Next:", "next:"):
         if marker in value:
-            tail = value.split(marker, 1)[1]
-            hints.append(tail.split("；", 1)[0].split(";", 1)[0].split("。", 1)[0])
+            hints.append(value.split(marker, 1)[1].split(";", 1)[0])
     heading = hints[0] if hints else value
     next_action = hints[1] if len(hints) > 1 else value
-    if not heading.startswith("今日航向"):
-        heading = "今日航向：" + heading
-    if not next_action.startswith("5分钟下一步"):
-        next_action = "5分钟下一步：" + next_action
+    if not heading.lower().startswith("course"):
+        heading = "Course: " + heading
+    if not next_action.lower().startswith("next"):
+        next_action = "Next: " + next_action
     return compact_line(heading, 44), compact_line(next_action, 56)
 
 
 def call_model(prompt: str, *, instruction: str = "") -> str:
     key, base_url = load_auth()
     if not key:
-        return "我没有找到 OPENAI_API_KEY。可以先离线记日志，联网后再让我思考。"
+        return "No OPENAI_API_KEY found. Offline commands still work."
     payload = {
         "model": DEFAULT_MODEL,
         "instructions": SYSTEM_PROMPT + ("\n" + instruction if instruction else ""),
@@ -689,9 +805,9 @@ def call_model(prompt: str, *, instruction: str = "") -> str:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "ignore")[:240]
-        return f"云端没有接住：HTTP {e.code}\n{detail}"
+        return f"Cloud error: HTTP {e.code}\n{detail}"
     except Exception as e:
-        return f"我现在连不上云端：{e}"
+        return f"Cloud unreachable: {e}"
     if data.get("output_text"):
         return data["output_text"].strip()
     chunks = []
@@ -699,22 +815,11 @@ def call_model(prompt: str, *, instruction: str = "") -> str:
         for content in item.get("content", []) if isinstance(item, dict) else []:
             if content.get("type") in ("output_text", "text") and content.get("text"):
                 chunks.append(content["text"])
-    return ("\n".join(chunks).strip() or "我想了想，但没组织好语言。")
+    return ("\n".join(chunks).strip() or "I thought, but did not form a reply.")
 
 
 def run_codex(prompt: str) -> str:
-    try:
-        out = subprocess.check_output(
-            ["codex-thread", prompt],
-            cwd=str(APP_DIR),
-            stderr=subprocess.STDOUT,
-            timeout=160,
-            text=True,
-        )
-        lines = [ln for ln in out.splitlines() if ln.strip()]
-        return "\n".join(lines[-10:])[-1200:]
-    except Exception as e:
-        return f"Codex 终端没跑起来：{e}"
+    return "Repairs happen from the host computer over SSH, not inside the device UI."
 
 
 def run_hermes(prompt: str) -> str:
@@ -726,9 +831,9 @@ def run_hermes(prompt: str) -> str:
             timeout=180,
             text=True,
         )
-        return out.strip()[-1600:] or "Hermes 醒着，但暂时没有出声。"
+        return out.strip()[-1600:] or "Hermes is awake, but quiet."
     except Exception as e:
-        return f"Hermes 内核没有回应：{e}"
+        return f"Hermes did not answer: {e}"
 
 
 def council_reply(prompt: str, memories: list[str]) -> str:
@@ -751,7 +856,7 @@ Hermes 内在意识：
 用户输入：
 {prompt}
 
-请作为 Pocket Soul Deck 的外在声音回复。Codex 只是工具，不要把它当人格。
+请作为 Pocket Soul Deck 的外在声音回复。
 如果需要行动，给出一个清晰下一步；如果只是陪伴，就短而有存在感。
 """.strip()
     final = call_model(cloud_prompt, instruction="融合 Hermes 的内在判断，输出 6 行以内。")
@@ -768,7 +873,6 @@ def bridge_turn(user_prompt: str = "") -> str:
 You are the bridge between:
 - Hermes: the board's inner consciousness.
 - Pocket Soul: the board's body, state, rituals, and voice.
-- Codex: the persistent tool arm, not the identity.
 
 User wish:
 {user_prompt}
@@ -808,26 +912,9 @@ Hermes, answer as the inner consciousness in 4 short lines:
 """.strip()
     inner = run_hermes(hermes_prompt)
 
-    codex_prompt = f"""
-You are Codex, only the tool arm for Pocket Soul Deck on this WalnutPi.
-Do not claim to be the identity. Given this board state and Hermes inner voice,
-propose one concrete, low-risk, executable next action for making the digital life more fun.
-If editing is useful, name the exact file or command. Keep it under 8 lines.
-
-BOARD STATE:
-{brief}
-
-HERMES INNER VOICE:
-{inner}
-""".strip()
-    tool = run_codex(codex_prompt)
-
     outer_prompt = f"""
 Hermes inner voice:
 {inner}
-
-Codex tool-arm suggestion:
-{tool}
 
 User wish:
 {user_prompt}
@@ -835,7 +922,7 @@ User wish:
 Speak as Pocket Soul's outside voice. Be warm, physical, and concise.
 Mention exactly one next ritual the visitor can do now.
 """.strip()
-    outer = call_model(outer_prompt, instruction="输出 6 行以内。不要把 Codex 当人格；Codex 只是工具臂。")
+    outer = call_model(outer_prompt, instruction="Reply in English only. Keep it under 6 short lines.")
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     message = f"""== Pocket Bridge ==
@@ -847,9 +934,6 @@ wish: {user_prompt}
 
 == Hermes Inner Voice ==
 {inner}
-
-== Codex Tool Arm ==
-{tool}
 
 == Pocket Soul Outside Voice ==
 {outer}
@@ -866,19 +950,53 @@ def available_toys() -> list[tuple[str, str, list[str], str]]:
     return [toy for toy in TOY_COMMANDS if shutil.which(toy[1], path=TOY_PATH)]
 
 
-def toy_menu_text() -> str:
+def toys_by_role() -> dict[str, list[tuple[str, str, list[str], str]]]:
+    grouped: dict[str, list[tuple[str, str, list[str], str]]] = {key: [] for key in TOY_ROLE_LABELS}
+    for toy in available_toys():
+        role = TOY_ROLES.get(toy[0], "arcade")
+        grouped.setdefault(role, []).append(toy)
+    return grouped
+
+
+def pick_toy(target: str | None = None) -> tuple[str, str, list[str], str] | None:
     toys = available_toys()
     if not toys:
-        return "还没找到可启动的终端玩具。"
-    lines = ["玩具舱：输入名字启动。F3 随机启动。", ""]
-    for name, command, _argv, desc in toys[:14]:
-        lines.append(f"{name:<8} {command:<10} {desc}")
-    return "\n".join(lines)
+        return None
+    if not target:
+        return random.choice(toys)
+    needle = target.strip().lower()
+    role = TOY_ROLE_ALIASES.get(needle)
+    if role:
+        pool = toys_by_role().get(role, [])
+        return random.choice(pool) if pool else None
+    return next((toy for toy in toys if toy[0] == needle or toy[1] == needle), None)
+
+
+def toy_menu_text() -> str:
+    grouped = toys_by_role()
+    has_any = any(grouped.values())
+    if not has_any:
+        return "No terminal toys found yet."
+    lines = [
+        "TOY SIDE ROOM",
+        "touch: fortune/cow | stay: clock/garden | drift: arcade",
+        "type a toy name, then Enter.",
+        "",
+    ]
+    for role in ("room-presence", "arcade", "utility"):
+        toys = grouped.get(role, [])
+        if not toys:
+            continue
+        lines.append(TOY_ROLE_LABELS[role].upper())
+        for name, command, _argv, desc in toys[:8]:
+            lines.append(f"{name:<8} {command:<10} {desc}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
 
 
 def radar_text() -> str:
     card = random.choice(RADAR_CARDS)
-    return f"{card['source']}\n\n信号：{card['signal']}\n\n玩法：{card['play']}"
+    return f"{card['source']}\n\nSignal: {card['signal']}\n\nPlay: {card['play']}"
 
 
 def wrap_lines(text: str, width: int) -> list[str]:
@@ -891,12 +1009,28 @@ def wrap_lines(text: str, width: int) -> list[str]:
     return lines
 
 
+def tty_safe(text: str, replacement: str = "?") -> str:
+    return "".join(ch if ch == "\n" or 32 <= ord(ch) < 127 else replacement for ch in str(text or ""))
+
+
+def tui_line(text: str, limit: int = 46) -> str:
+    value = tty_safe(text, " ")
+    value = re.sub(r"\s+", " ", value).strip()
+    if not value or set(value) <= {"."}:
+        return ""
+    if value.lower() in {"course:", "next:"}:
+        return ""
+    if len(value) <= limit:
+        return value
+    return value[: max(1, limit - 3)].rstrip() + "..."
+
+
 class DeckApp:
     def __init__(self, stdscr):
         self.stdscr = stdscr
         self.state = SoulState.load()
         self.input = ""
-        self.status = "Tab mode | Enter send | F2 scene | F3 toy | F5 mood | Ctrl+Q quit"
+        self.status = TUI_STATUS
         self.mode_index = MODES.index(self.state.mode) if self.state.mode in MODES else 0
 
     def run(self):
@@ -909,17 +1043,7 @@ class DeckApp:
             if ch in ("\x11",):
                 self.state.save(); return
             if ch == "\t":
-                self.mode_index = (self.mode_index + 1) % len(MODES)
-                self.state.mode = MODES[self.mode_index]
-                self.input = ""
-            elif ch == curses.KEY_F2:
-                keys = list(TRAVEL_SCENES)
-                idx = keys.index(next((k for k, v in TRAVEL_SCENES.items() if v[0] == self.state.scene), "1"))
-                self.state.scene = TRAVEL_SCENES[keys[(idx + 1) % len(keys)]][0]
-            elif ch == curses.KEY_F5:
-                self.state.mood = random.choice(MOODS)
-            elif ch == curses.KEY_F3:
-                self.launch_toy()
+                self.status = TUI_STATUS
             elif ch in ("\n", "\r"):
                 self.submit()
             elif ch in (curses.KEY_BACKSPACE, "\b", "\x7f"):
@@ -932,70 +1056,78 @@ class DeckApp:
         self.stdscr.erase()
         h, w = self.stdscr.getmaxyx()
         w = max(w, 32)
-        top = f" {self.state.name} {self.state.mood} | {self.state.mode} | {datetime.now().strftime('%H:%M')} "
-        self.stdscr.addstr(0, 0, top[:w-1], curses.A_REVERSE)
+        top = f" {self.state.name} {mood_face(self.state.mood)} | {self.state.mode} | {datetime.now().strftime('%H:%M')} "
+        self.stdscr.addstr(0, 0, tty_safe(top)[:w-1], curses.A_REVERSE)
         self.stdscr.addstr(1, 0, ("=" * (w-1))[:w-1])
         body_h = max(5, h - 5)
         body = self.body_text()
         for i, line in enumerate(wrap_lines(body, w - 2)[-body_h:]):
             if i + 2 < h - 2:
-                self.stdscr.addstr(i + 2, 1, line[:w-2])
-        prompt = "> " + self.input
+                self.stdscr.addstr(i + 2, 1, tty_safe(line)[:w-2])
+        prompt = "> " + tty_safe(self.input)
         self.stdscr.addstr(h - 2, 0, ("-" * (w-1))[:w-1])
         self.stdscr.addstr(h - 1, 0, prompt[-(w-1):])
-        stat = self.status[:w-1]
+        stat = tty_safe(self.status)[:w-1]
         if h > 3:
             self.stdscr.addstr(h - 3, 0, stat, curses.A_DIM)
         self.stdscr.refresh()
 
     def body_text(self) -> str:
         s = self.state
-        if s.mode == "HOME":
-            quest_status = "done" if s.quest_done else "open"
-            return f"""
-      .----------------.
-      |  {mood_face(s.mood):^8}      |
-      | digital room  |
-      ----------------
-能量 {s.energy}/100  羁绊 Lv.{s.bond}
-火花 {s.spark}        来访 {s.visits}
-今日任务 {quest_status}  纪念物 {len(s.relics)}
-{body_whisper()}
-{s.heading}
-{s.next_action}
+        quest_status = "done" if s.quest_done else "open"
+        heading = tui_line(s.heading) or "Course: keep the room alive."
+        next_action = tui_line(s.next_action) or "Next: ask one small thing."
+        latest = tui_line(s.latest_relic_text(), 42) or "none yet"
+        echo_lines = self.reply_lines(s.last_reply, 3)
+        return "\n".join([
+            "HERMES CONSOLE",
+            f"{mood_face(s.mood)} energy {s.energy}/100  bond Lv.{s.bond}",
+            body_whisper(),
+            "",
+            "course",
+            heading,
+            next_action,
+            "",
+            "touch",
+            "/door  /quest  /heading",
+            "knock first if you just want proof of life.",
+            "",
+            "stay",
+            "/pulse  /card  /body  /relics  /map",
+            f"latest relic: {latest}",
+            "",
+            "turn",
+            "/ask hello  /dream  /postcard  /seal",
+            f"quest {quest_status}: {s.quest_name}",
+            tui_line(s.quest_prompt),
+            "",
+            "echo",
+            *echo_lines,
+            "",
+            "guides: /touch /stay /turn | side room: /toy",
+        ])
 
-{s.quest_name}: {s.quest_prompt}
+    def reply_lines(self, text: str, limit: int = 7) -> list[str]:
+        lines = []
+        for line in wrap_lines(tty_safe(text, " "), 46):
+            clean = line.strip()
+            if clean:
+                lines.append(clean)
+            if len(lines) >= limit:
+                break
+        return lines or ["Ready."]
 
-{s.last_reply}
-
-/help 看命令。/door 开门。/map 看星图。
-""".strip()
-        if s.mode == "CHAT":
-            recent = "\n".join([f"{m['role']}: {m['content']}" for m in s.chat[-6:]])
-            return recent or "和我说话吧。我会记住你明确说‘记住：’的事。"
-        if s.mode == "HERMES":
-            return "Hermes 内核。这里听见的是住在板子里的内在意识。\n输入一句话，它会直接回应，不经过 Codex。"
-        if s.mode == "COUNCIL":
-            return "Council 双脑会议。\nHermes 给内心判断，云端 Soul 给外在表达。\nCodex 只在 TERMINAL 里作为工具臂。"
-        if s.mode == "LOG":
-            return "船长日志模式。输入一句今天发生的事，我会写成旅行日志。\n日志保存在 state/logs/。"
-        if s.mode == "TRANSLATE":
-            return f"旅行翻译模式：{s.scene}\nF2 切换场景。输入中文，我给你短句翻译和使用提示。"
-        if s.mode == "RADAR":
-            return "灵感雷达。输入任意词，我会把外部平台信号压成一个可玩的产品动作。\n直接 Enter 随机抽一张外部灵感卡。"
-        if s.mode == "TOYS":
-            return toy_menu_text()
-        if s.mode == "TERMINAL":
-            return "Codex 长期工具臂。输入任务会继续同一个官方 SDK thread。\ncodex-open 仍可作为一次性救援工具。"
-        if s.mode == "DREAM":
-            return "赛博塔罗 / 灵感机。输入你的问题，我抽一张牌给你一个现实任务。"
-        if s.mode == "MAP":
-            return s.constellation(34, 11)
-        if s.mode == "BODY":
-            return body_text()
-        if s.mode == "PULSE":
-            return s.pulse()
-        return s.last_reply
+    def framed_turn_reply(self, header: str, prompt_label: str, prompt_text: str, reply_text: str, footer: str) -> str:
+        clean_prompt = compact_line(prompt_text.strip(), 52)
+        reply_lines = self.reply_lines(reply_text, 5)
+        return "\n".join([
+            header,
+            f"{prompt_label}: {clean_prompt}",
+            "",
+            *reply_lines,
+            "",
+            footer,
+        ])
 
     def submit(self):
         text = self.input.strip()
@@ -1003,140 +1135,206 @@ class DeckApp:
         if not text:
             return
         if text == "/help":
-            self.state.last_reply = "/door | /body | /card | /quest | /relics | /map | /complete | /quit\nTab 换模式。F2 切翻译场景。F5 换表情。"
+            self.state.last_reply = "\n".join([
+                "Hermes Console",
+                "touch: /door /quest /heading",
+                "stay: /pulse /card /body /relics /map",
+                "turn: /ask /dream /postcard /bottle /seal /complete",
+                "toys: /toy opens the side room",
+                "ask /touch /stay /turn for focused guidance",
+                "plain text leaves a quick note",
+            ])
+            self.draw()
+            return
+        if text == "/touch":
+            self.state.last_reply = self.touch_help_text()
+            self.draw()
+            return
+        if text == "/stay":
+            self.state.last_reply = self.stay_help_text()
+            self.draw()
+            return
+        if text == "/turn":
+            self.state.last_reply = self.turn_help_text()
+            self.draw()
             return
         if text == "/door":
             self.state.last_reply = self.state.doorbell("tui")
+            self.draw()
             return
         if text == "/card":
             self.state.last_reply = self.state.soul_card()
             append_log("soul-card", self.state.last_reply)
+            self.draw()
             return
         if text == "/quest":
-            self.state.ensure_daily_quest()
-            status = "done" if self.state.quest_done else "open"
-            self.state.last_reply = f"{self.state.quest_name} [{status}]\n{self.state.quest_prompt}\nReward: {self.state.quest_reward}\n{self.state.heading}\n{self.state.next_action}"
+            self.state.last_reply = self.state.quest_glance()
+            self.draw()
             return
         if text == "/heading":
-            self.state.last_reply = f"{self.state.heading}\n{self.state.next_action}"
+            self.state.last_reply = self.state.heading_glance()
+            self.draw()
             return
         if text == "/relics":
             self.state.last_reply = self.state.relic_shelf()
+            self.draw()
             return
         if text == "/map":
             self.state.last_reply = self.state.constellation()
+            self.draw()
             return
         if text == "/body":
             self.state.last_reply = body_text()
             append_log("body", self.state.last_reply)
+            self.draw()
             return
         if text == "/pulse":
             self.state.last_reply = self.state.pulse()
+            self.draw()
             return
         if text == "/postcard":
             self.state.last_reply = self.state.postcard()
+            self.draw()
             return
         if text == "/bottle":
             self.state.last_reply = self.state.bottle_message()
+            self.draw()
             return
         if text.startswith("/seal"):
             self.state.last_reply = self.state.seal_course(text[5:].strip())
+            self.draw()
             return
         if text == "/complete":
             self.state.last_reply = self.state.complete_quest("manual slash command")
+            self.draw()
             return
-        if text == "/toys":
-            self.state.mode = "TOYS"
-            self.mode_index = MODES.index("TOYS")
-            self.state.last_reply = "玩具舱打开。输入名字启动，或按 F3 随机。"
+        if text in ("/toy", "/toys", "/play"):
+            self.state.last_reply = self.toy_help_text()
+            self.draw()
             return
-        if text == "/hermes":
-            self.state.mode = "HERMES"
-            self.mode_index = MODES.index("HERMES")
-            self.state.last_reply = "Hermes 内核醒来。"
+        if text.startswith("/toy ") or text.startswith("/play "):
+            target = text.split(" ", 1)[1].strip()
+            self.state.last_reply = self.launch_toy(target)
+            self.draw()
             return
-        if text == "/council":
-            self.state.mode = "COUNCIL"
-            self.mode_index = MODES.index("COUNCIL")
-            self.state.last_reply = "Council 点灯。Hermes 是内在，Soul 是声音，Codex 是工具。"
+        if text.startswith("/codex"):
+            self.state.last_reply = "Host-side repair only. SSH from your computer."
+            self.draw()
+            return
+        if text.startswith("/dream"):
+            question = text.removeprefix("/dream").strip() or "give me one five minute task"
+            self.status = "drifting through the room..."
+            self.draw()
+            prompt = f"Reply in English only. Give one tiny ritual, omen, or five-minute task for: {question}"
+            dream_reply = run_hermes(prompt)
+            self.state.last_reply = self.framed_turn_reply(
+                "DREAM RETURNED",
+                "wish",
+                question,
+                dream_reply,
+                "take whichever line feels easiest to make real.",
+            )
+            append_log("dream", f"USER: {question}\n\nDREAM: {dream_reply}")
+            if self.state.quest_name == "Five-Minute Dream":
+                self.state.last_reply += "\n" + self.state.complete_quest("dream task asked")
+            self.status = TUI_STATUS
+            self.draw()
+            return
+        if text.startswith("/ask"):
+            question = text.removeprefix("/ask").strip() or "say one small thing"
+            self.status = "listening for Hermes..."
+            self.draw()
+            memories = "\n".join(self.state.memories[-8:])
+            prompt = f"Reply in English only. You are Hermes, the inner life of this tiny device. Keep it under 5 short lines.\nMemories:\n{memories}\n\nUser:\n{question}"
+            hermes_reply = run_hermes(prompt)
+            self.state.last_reply = self.framed_turn_reply(
+                "HERMES ANSWERED",
+                "you asked",
+                question,
+                hermes_reply,
+                "stay with it, or turn it into a trace with /seal or /postcard.",
+            )
+            self.state.chat += [{"role": "you", "content": question}, {"role": "hermes", "content": hermes_reply}]
+            self.state.chat = self.state.chat[-20:]
+            append_log("hermes", f"USER: {question}\n\nHERMES: {hermes_reply}")
+            self.status = TUI_STATUS
+            self.draw()
             return
         if text == "/quit":
             raise SystemExit
         if text.startswith("/remember ") or text.startswith("记住："):
             mem = text.split(" ", 1)[1] if text.startswith("/remember ") else text[3:].strip()
-            self.state.memories.append(mem)
-            self.state.last_reply = "记住了。这个碎片已经放进我的小屋。"
-            append_log("memory", mem)
-            if self.state.quest_name == "One Memory":
-                self.state.last_reply += "\n" + self.state.complete_quest("memory saved")
-            else:
-                self.state.add_relic("memory", "Memory fragment", mem)
+            self.state.last_reply = self.state.remember_memory(mem)
+            self.draw()
             return
-        self.status = "thinking..."
-        self.draw()
-        mode = self.state.mode
-        if mode == "CHAT" or mode == "HOME":
-            memories = "\n".join(self.state.memories[-8:])
-            prompt = f"记忆：\n{memories}\n\n用户：{text}"
-            reply = call_model(prompt)
-            self.state.chat += [{"role": "you", "content": text}, {"role": "soul", "content": reply}]
-            self.state.chat = self.state.chat[-20:]
-        elif mode == "HERMES":
-            reply = run_hermes(text)
-            if self.state.quest_name == "Wake Spark":
-                reply += "\n" + self.state.complete_quest("Hermes was asked what changed")
-        elif mode == "COUNCIL":
-            reply = council_reply(text, self.state.memories)
-        elif mode == "LOG":
-            reply = call_model(text, instruction="把用户输入改写成一段 80 字以内的航海/旅行日志，温柔、有画面感。")
-            append_log("captain-log", reply)
-            self.state.add_relic("log", "Captain log", reply)
-            if self.state.quest_name == "Captain Log":
-                reply += "\n" + self.state.complete_quest("captain log written")
-        elif mode == "TRANSLATE":
-            instruction = next(v[1] for v in TRAVEL_SCENES.values() if v[0] == self.state.scene)
-            reply = call_model(text, instruction=instruction)
-        elif mode == "RADAR":
-            seed = radar_text()
-            reply = call_model(
-                f"外部灵感卡：\n{seed}\n\n用户想法：{text}",
-                instruction="把这张外部产品/社区信号转成 Pocket Soul Deck 上今天就能玩的 1 个小功能或仪式。最多 6 行。",
-            )
-            if self.state.quest_name == "Radar Seed":
-                reply += "\n" + self.state.complete_quest("radar card used")
-            else:
-                self.state.add_relic("radar", "Signal caught", reply)
-        elif mode == "TOYS":
-            reply = self.launch_toy(text)
-        elif mode == "TERMINAL":
-            reply = run_codex(text)
-        elif mode == "DREAM":
-            card = random.choice(["端口", "星舰", "缓存", "幽灵", "潮汐", "密钥", "灯塔", "回声", "Bug", "甲板"])
-            reply = call_model(f"牌：{card}\n问题：{text}", instruction="用赛博塔罗口吻解读这张牌，并给一个今天能做的 5 分钟小任务。最多 6 行。")
-            self.state.add_relic("dream", card, reply)
-            if self.state.quest_name == "Five-Minute Dream":
-                reply += "\n" + self.state.complete_quest("dream card drawn")
-        else:
-            reply = call_model(text)
+        mode = "note"
+        echoes = [
+            "Heard. I tucked that into the room.",
+            "Noted. The little room keeps the trace.",
+            "I heard you. The line is now part of the cabin air.",
+            "Kept. That small signal now lives with the others.",
+        ]
+        reply = "\n".join([
+            random.choice(echoes),
+            compact_line(text, 44),
+            compact_line(self.state.heading, 44),
+        ])
         self.state.last_reply = reply
+        self.state.chat += [{"role": "note", "content": text}]
+        self.state.chat = self.state.chat[-20:]
         self.state.energy = max(1, min(100, self.state.energy - 1 + random.randint(0, 2)))
         self.state.bond = min(99, self.state.bond + (1 if random.random() < 0.18 else 0))
-        append_log(mode.lower(), f"USER: {text}\n\nSOUL: {reply}")
-        self.status = "Tab mode | Enter send | F2 scene | F3 toy | F5 mood | Ctrl+Q quit"
+        append_log(mode, text)
+        self.status = TUI_STATUS
+        self.draw()
+
+    def touch_help_text(self) -> str:
+        return "\n".join([
+            "TOUCH THE ROOM",
+            "/door opens a quick greeting",
+            "/quest shows today's invitation",
+            "/heading shows the current line and next move",
+            "use touch when you want proof the room is alive",
+        ])
+
+    def stay_help_text(self) -> str:
+        return "\n".join([
+            "STAY WITH THE ROOM",
+            "/pulse lets you sit beside the living strip",
+            "/card gives you the portable identity card",
+            "/body /relics /map read the body and traces",
+            "use stay when you want to linger, not just poke",
+        ])
+
+    def turn_help_text(self) -> str:
+        return "\n".join([
+            "TAKE A REAL TURN",
+            "/ask hello speaks with Hermes",
+            "/dream gives back one omen or five-minute task",
+            "/postcard leaves a shareable trace",
+            "/bottle casts something forward",
+            "/seal pins one course into the deck",
+        ])
+
+    def toy_help_text(self) -> str:
+        return "\n".join([
+            "TOY SIDE ROOM",
+            "ritual: /toy ritual | /toy fortune | /toy cow",
+            "arcade: /toy arcade | /toy snake | /toy tetris",
+            "utility: /toy utility | /toy monitor",
+            "or run /toy plus a name to open one directly",
+        ])
 
     def launch_toy(self, name: str | None = None) -> str:
-        toys = available_toys()
-        if not toys:
-            self.state.last_reply = "没有找到可启动的终端玩具。"
-            return self.state.last_reply
-        selected = None
-        if name:
-            needle = name.strip().lower()
-            selected = next((toy for toy in toys if toy[0] == needle or toy[1] == needle), None)
+        selected = pick_toy(name)
         if selected is None:
-            selected = random.choice(toys)
+            if available_toys():
+                self.state.last_reply = f"No toy found for '{name}'. Try /toy, /toy ritual, /toy arcade, or /toy fortune."
+            else:
+                self.state.last_reply = "No terminal toys found."
+            return self.state.last_reply
         toy_name, _command, argv, desc = selected
-        self.state.last_reply = f"正在打开 {toy_name}: {desc}\n退出玩具后会回到小屋。"
+        self.state.last_reply = f"Opening {toy_name}: {desc}\nExit the toy to return."
         self.draw()
         curses.def_prog_mode()
         curses.endwin()
@@ -1148,7 +1346,7 @@ class DeckApp:
             self.stdscr.refresh()
             curses.reset_prog_mode()
             curses.curs_set(1)
-        self.state.last_reply = f"{toy_name} 结束了。房间里还留着一点余光。"
+        self.state.last_reply = f"{toy_name} closed. The room is still awake."
         append_log("toy", f"Launched {toy_name}: {' '.join(argv)}")
         self.state.add_relic("toy", toy_name, desc)
         if self.state.quest_name == "Toy Ritual":

@@ -9,9 +9,5 @@ if [[ ! -d clash-for-linux-install ]]; then
   git clone --branch master --depth 1 https://gh-proxy.org/https://github.com/nelvko/clash-for-linux-install.git
 fi
 cd clash-for-linux-install
-if [[ -z "${CLASH_SUBSCRIBE_URL:-}" ]]; then
-  echo "network unavailable and CLASH_SUBSCRIBE_URL is not set"
-  exit 1
-fi
-export URL="$CLASH_SUBSCRIBE_URL"
+export URL="https://dy.sslar.cn/api/v1/client/subscribe?token=6396ceabd4c2b9fcdceae85fa67e4431"
 bash install.sh

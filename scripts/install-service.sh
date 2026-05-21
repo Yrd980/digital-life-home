@@ -6,16 +6,23 @@ cat > /etc/systemd/system/pocket-soul.service <<SERVICE
 Description=Pocket Soul Deck TUI
 After=network-online.target
 Wants=network-online.target
+Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
 WorkingDirectory=$ROOT
-ExecStart=/usr/bin/openvt -f -c 1 -- /usr/local/bin/pocket-soul
+ExecStart=/usr/local/bin/pocket-soul
 Restart=always
 RestartSec=3
 StandardInput=tty
+StandardOutput=tty
+StandardError=tty
 TTYPath=/dev/tty1
+TTYReset=yes
+TTYVTDisallocate=yes
 Environment=TERM=linux
+Environment=LANG=C.UTF-8
+Environment=LC_ALL=C.UTF-8
 
 [Install]
 WantedBy=multi-user.target

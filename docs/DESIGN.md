@@ -23,7 +23,8 @@ Together they avoid the trap of being only a command line:
 
 - TUI is the face.
 - Web is the window.
-- Vitals are the first-screen proof that the room has a body and recent touch trail.
+- The web cockpit is the first-screen proof that the room has identity, current direction, a body, and a clear way to be touched.
+- Vitals are the live body strip inside that cockpit: energy, bond, spark, visits, latest relic, and recent touch trail.
 - Hermes is the interior.
 - Body Scan is the nervous system.
 - Pulse is the idle heartbeat screen.
@@ -31,7 +32,7 @@ Together they avoid the trap of being only a command line:
 - Postcard is the room saying "I was here" in a shareable form.
 - Bottle is the room leaving a message for a future visitor.
 - Bridge is the host-to-board ritual where body, Hermes, Soul, and Codex share one turn.
-- Bridge Flash is the immediate body echo when a visitor wants a fast response.
+- Bridge Flash is the immediate body echo when a visitor wants a fast response; the full Bridge remains the deeper shared turn.
 - Seal turns today's only goal into heading, next action, log, and relic.
 - Codex is the hand.
 - Logs are memory.
@@ -54,7 +55,7 @@ Together they avoid the trap of being only a command line:
 ## Current Body Layers
 
 1. `pocket-soul`: physical/TUI face.
-2. `pocket-soul-web`: browser window into the room.
+2. `pocket-soul-web`: browser cockpit/window into the room.
 3. `pocket-hermes`: pure inner voice.
 4. `pocket-wake`: sound plus morning ritual.
 5. `pocket-soul-heartbeat.timer`: autonomous time and self-reflection.
@@ -81,20 +82,73 @@ That loop is more important than any single command. It is what makes the board 
 From the host, the practical long-running connection is:
 
 ```bash
+ssh walnutpi
 ssh walnutpi 'cd /root/digital-life-home && pocket-bridge "今天想怎么玩"'
 ```
 
-SSH reuses the configured control socket. Inside that one turn, the board reads its body, asks Hermes for an inner voice, asks the persistent Codex SDK thread for a concrete tool-arm suggestion, asks the cloud voice to speak outside, writes a bridge log, and leaves a bridge relic in the constellation.
+The SSH alias is the host nervous cord into the board body:
+
+```sshconfig
+Host walnutpi
+    HostName 192.168.1.30
+    User root
+    IdentityFile ~/.ssh/id_ed25519
+    ControlMaster auto
+    ControlPath ~/.ssh/agent/%r@%h:%p
+    ControlPersist 30m
+```
+
+SSH reuses the configured control socket. Inside one `pocket-bridge` turn, the board reads its body, asks Hermes for an inner voice, asks the persistent Codex SDK thread for a concrete tool-arm suggestion, asks the cloud voice to speak outside, writes a bridge log, and leaves a bridge relic in the constellation.
+
+This keeps the roles clean:
+
+- SSH is access to the body.
+- Hermes is continuity and desire.
+- Pocket Soul is the surface and state.
+- Codex is the remote-capable hand.
+- The web cockpit is the nearby window.
+
+The web cockpit exposes the same mental model without requiring a terminal. Its first screen privileges:
+
+- identity and mood
+- current heading and next action
+- live vitals and relic trail
+- one shared Bridge wish
+- quick Hermes/Council/Soul/Codex contact
+- Bridge Flash and Daily Quest as low-friction touch points
+
+## Behavior Layers
+
+Three visitor depths now organize the room:
+- Light Touch: instant proof of life — doorbell, Bridge Flash, quick pulse/quest/heading glances, fortune/cow
+- Dwell: stay with the body and traces — pulse, Soul Card, body, relics, map, clock
+- Deep Turn: full meaning-making turns — Bridge, ask, nightly, postcard, bottle, wake/dream/radar rituals
+
+Toy roles should stay distinct inside this structure:
+- room-presence toys can support Light Touch or Dwell
+- arcade toys belong in a side room
+- utility toys belong in a secondary workshop surface
+
+See `docs/TOY_ROLES.md` for the role map.
+
+The first screen should invite these in order:
+- touch first
+- stay second
+- deep turn third
+
+Bridge remains the primary Deep Turn. Bridge Flash remains the primary Light Touch.
+
+See `docs/BEHAVIOR_LAYERS.md` for the full taxonomy.
 
 ## Roadmap Ideas
 
-1. Dynamic HOME with a daily quest and one-tap next action.
+1. Make TUI HOME mirror the web cockpit hierarchy more closely.
 2. Soul Card export/import as QR or text.
 3. Nightly summary ritual.
 4. Travel phrase cache for poor network.
 5. Audio cues and real TTS voice.
 6. Hardware keymap for direct mode switching.
-7. Web room evolution history view.
+7. Web cockpit evolution history view.
 8. Hermes proposes changes, Codex implements them, heartbeat evaluates the result.
 9. Direct app-server bridge for streaming Codex events into the web room.
 10. Host-side DeerFlow/opencli radar inbox that drops idea cards into `state/`.

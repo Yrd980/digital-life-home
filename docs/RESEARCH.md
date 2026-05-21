@@ -20,17 +20,15 @@ This project uses research as fuel for rituals and product shape, not as a stati
 - `RADAR`: external community/product inspiration as playable cards.
 - `TOYS`: installed terminal toys as room rituals.
 - `heartbeat`: time passing and autonomous reflection.
-- `web room`: non-command-line surface.
-- `last30days`: deeper external radar when needed.
+- `web cockpit`: non-command-line surface that foregrounds identity, body state, current heading, next action, Bridge, and quick layer contact.
 
 ## Current MVP Formula
 
-`Pocket Soul Deck = AI Tamagotchi + pocket cyberdeck + Hermes inner consciousness + web room + travel log + translator + terminal arcade + Codex tool arm`.
+`Pocket Soul Deck = AI Tamagotchi + pocket cyberdeck + Hermes inner consciousness + web cockpit + travel log + translator + terminal arcade + Codex tool arm`.
 
 ## Research Tools
 
 - Host: DeerFlow and opencli for broad multi-platform research.
-- Board: `last30days` controlled engine for deeper radar.
 - Board: static `research-radar.sh` when network or runtime is limited.
 
 ## Host-To-Board Flow

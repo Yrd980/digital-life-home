@@ -1,5 +1,23 @@
 # Operations
 
+## Behavior Layers
+
+Use the room in three depths:
+
+- Touch the room: instant proof of life — doorbell, Bridge Flash, quick pulse/quest/heading glances, fortune/cow
+- Stay with the room: pulse, Soul Card, body, relics, map, clock
+- Take a real turn: Bridge, ask, dream, nightly, postcard, bottle, wake/radar rituals
+
+When in doubt:
+- touch first
+- stay second
+- deep turn third
+
+Bridge is the primary Deep Turn.
+Bridge Flash is the primary Light Touch.
+
+See `docs/BEHAVIOR_LAYERS.md` for the fuller product skeleton.
+
 ## Useful Commands
 
 ```bash
@@ -26,6 +44,60 @@ codex-thread "用一句话说你在延续哪个 thread"
 git status --short
 ```
 
+From the host, enter the board through the SSH alias:
+
+```bash
+ssh walnutpi
+ssh walnutpi 'cd /root/digital-life-home && pocket-pulse'
+ssh walnutpi 'cd /root/digital-life-home && systemctl --no-pager --plain status pocket-soul-web'
+```
+
+The host shell may be fish; keep remote commands quoted so they run on the board as one command string.
+
+## Touch, Stay, Turn
+
+Think of the commands by visitor intent, not only by executable name.
+Toy grouping should follow role, not a flat launch list. See `docs/TOY_ROLES.md`.
+
+### Touch the room
+Quick proof of life:
+- `/door` = knock and get an immediate answer
+- `/quest` = glance at today's invitation
+- `/heading` = glance at the current line and next move
+
+```bash
+pocket-doorbell
+curl -sS http://127.0.0.1:8787/api/doorbell
+curl -sS http://127.0.0.1:8787/api/bridge-flash
+curl -sS -X POST http://127.0.0.1:8787/api/bridge-flash --data-urlencode 'wish=blink'
+```
+
+### Stay with the room
+Body, mood, and traces:
+- `/pulse` = sit beside the room's living strip
+- `/card` = carry the portable identity snapshot
+
+```bash
+pocket-pulse
+pocket-soul-card
+pocket-body
+pocket-relics
+pocket-map
+curl -sS http://127.0.0.1:8787/api/live | python3 -m json.tool
+curl -sS http://127.0.0.1:8787/api/body | python3 -m json.tool
+```
+
+### Take a real turn
+Meaningful rituals that leave a trace:
+
+```bash
+pocket-bridge "让 Hermes 和 Codex 一起决定下一步"
+pocket-nightly
+pocket-postcard "今天的小屋"
+pocket-bottle "给未来的我：继续出海"
+pocket-pick-bottle
+```
+
 ## Services
 
 Web room:
@@ -34,8 +106,16 @@ Web room:
 systemctl status pocket-soul-web
 systemctl restart pocket-soul-web
 journalctl -u pocket-soul-web -n 100 --no-pager
+curl -sS http://127.0.0.1:8787/api/live | python3 -m json.tool
 curl -sS http://127.0.0.1:8787/api/state | python3 -m json.tool | head
 ```
+
+The web first screen is the cockpit: identity, mood, heading, next action, live vitals, one shared Bridge wish, quick Hermes/Council/Soul/Codex contact, Bridge Flash, thinking phase, and Daily Quest.
+
+Read it in layers:
+- Light Touch: Bridge Flash and doorbell should be the fastest visible actions
+- Dwell: live vitals, pulse, body, relic trail, and Soul Card should support a calm pause
+- Deep Turn: the shared Bridge wish should remain the primary full-turn action
 
 Heartbeat:
 
@@ -165,12 +245,29 @@ ssh walnutpi 'cd /root/digital-life-home && pocket-bridge "今晚让自己更像
 
 Current SSH reuse shape on the host:
 
-```text
-Host walnutpi -> root@192.168.1.30
-ControlMaster auto
-ControlPersist 1800
-ControlPath ~/.ssh/agent/root@192.168.1.30:22
+```sshconfig
+Host walnutpi
+    HostName 192.168.1.30
+    User root
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts
+    ControlMaster auto
+    ControlPath ~/.ssh/agent/%r@%h:%p
+    ControlPersist 30m
+    ServerAliveInterval 20
+    ServerAliveCountMax 6
+    TCPKeepAlive yes
 ```
+
+Meaning:
+
+- `Host walnutpi` is the stable body name used by host Codex and the user.
+- `root@192.168.1.30` is the board body on the LAN.
+- `IdentityFile ~/.ssh/id_ed25519` is the private key path.
+- `ControlMaster` and `ControlPersist` keep repeated SSH rituals fast.
+- `ServerAliveInterval` and `ServerAliveCountMax` keep long Bridge or repair turns from dying too eagerly.
 
 `pocket-bridge` does one full living turn:
 
@@ -182,9 +279,9 @@ ControlPath ~/.ssh/agent/root@192.168.1.30:22
 
 This is the default reusable way for host Codex and board Hermes to coordinate.
 
-The same Bridge is exposed in the web room as the `Bridge` card. The browser POST waits for the turn to finish and then shows the result; `/api/bridge` returns the latest completed Bridge text.
+The same Bridge is exposed in the web cockpit as the shared wish form. The browser POST runs through the async web action path, updates the thinking phase while it waits, then shows the result; `/api/bridge` returns the latest completed Bridge text.
 
-`Bridge Flash` is the fast version in the web room. It does not call Codex or the cloud model; it records an immediate body echo, updates heading/next action, and leaves a `flash` relic.
+`Bridge Flash` is the fast version in the web cockpit and the detailed tool grid. It does not call Codex or the cloud model; it records an immediate body echo, updates heading/next action, refreshes live vitals without a full page reload, and leaves a `flash` relic.
 
 ## Hermes
 
@@ -226,10 +323,9 @@ Codex is a tool arm, not the identity of the system.
 
 ```bash
 ./scripts/research-radar.sh
-./scripts/last30days.sh "AI companion cyberdeck"
 ```
 
-Host-side DeerFlow/opencli can do broader research when the board is too slow or browser-backed sources are needed.
+Host-side DeerFlow/opencli can do broader research when browser-backed sources are needed.
 
 ## Network Recovery
 

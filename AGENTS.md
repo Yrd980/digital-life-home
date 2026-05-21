@@ -14,7 +14,7 @@ Principles:
 - Local state belongs to the device: memories, logs, mood, bond, evolution tasks, and rituals should survive restarts.
 - Make normal people feel capable: use natural language and slash commands, not provider jargon.
 - Be honest about connectivity: offline mode should keep notes and explain what will resume later.
-- Use DeerFlow, opencli, and last30days when imagination gets thin; turn research into modes, rituals, or scripts.
+- Use DeerFlow and opencli when imagination gets thin; turn research into modes, rituals, or scripts.
 - Keep the code small, dependency-light, and repairable over SSH.
 - Do not add tests for this project unless explicitly requested.
 - Favor reusable scripts over one-off shell incantations.

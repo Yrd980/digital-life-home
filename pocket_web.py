@@ -17,34 +17,207 @@ PORT = 8787
 ACTION_LOCK = threading.Lock()
 
 STYLE = """
-:root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-body { margin: 0; background: #080a0f; color: #e8ffe8; }
-main { max-width: 920px; margin: 0 auto; padding: 18px; }
-.hero { border: 1px solid #2a7; padding: 16px; background: #10151d; }
-.hero.live { animation: breathe 4s ease-in-out infinite; }
-.face { font-size: 56px; line-height: 1; }
-.vitals { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 12px; }
-.vital { border: 1px solid #263; background: #07120d; padding: 10px; }
-.vital strong { display: block; color: #9ff; font-size: 12px; font-weight: normal; }
-.rail { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-.sigil { border: 1px solid #365; background: #101820; color: #9ff; padding: 4px 7px; min-width: 18px; text-align: center; text-decoration: none; }
-.sigil:hover { border-color: #9ff; background: #17242d; }
-.flash-button { border-color: #9ff; background: #17313a; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
-.card { border: 1px solid #244; background: #0d1118; padding: 12px; min-height: 88px; }
-h1, h2 { margin: 0 0 8px; }
-a, button { color: #9ff; }
-textarea, input, select { width: 100%; box-sizing: border-box; background: #05070a; color: #e8ffe8; border: 1px solid #366; padding: 10px; font: inherit; }
-button { background: #123; border: 1px solid #4aa; padding: 9px 12px; cursor: pointer; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; }
-pre { white-space: pre-wrap; word-break: break-word; background: #05070a; border: 1px solid #223; padding: 12px; max-height: 420px; overflow: auto; }
-.badge { color: #111; background: #8f8; padding: 2px 6px; }
-.small { color: #9ab; font-size: 13px; }
-.thinking { border-color: #9ff; box-shadow: 0 0 0 1px #224, 0 0 18px #0ff3 inset; }
-.phase { color: #9ff; min-height: 20px; }
-.phase:before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border: 1px solid #9ff; background: #123; animation: blink 1s steps(2, start) infinite; }
-@keyframes breathe { 0%, 100% { border-color: #275; } 50% { border-color: #9ff; } }
-@keyframes blink { 50% { opacity: .25; } }
+:root {
+  color-scheme: dark;
+  --bg: #080908;
+  --floor: #10110d;
+  --wall: #171611;
+  --object: #1f2119;
+  --ink: #efe8d0;
+  --soft: #b6aa8b;
+  --dim: #7b715e;
+  --line: #393529;
+  --lamp: #f0c66d;
+  --green: #9fd3a6;
+  --blue: #91c7d9;
+  --rose: #d98f88;
+  --shadow: 0 28px 90px #000d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 18%, #f0c66d12 0 150px, transparent 340px),
+    linear-gradient(180deg, #0b0b09 0%, #11120e 58%, #090a09 100%);
+  color: var(--ink);
+}
+body:before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, #fff1 0 1px, transparent 1px 6px);
+  opacity: .08;
+}
+main { width: min(980px, 100%); margin: 0 auto; padding: 20px; }
+a { color: var(--lamp); text-decoration: none; }
+a:hover { color: #ffe1a1; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { font-size: clamp(34px, 8vw, 72px); line-height: .92; letter-spacing: 0; }
+h2 { font-size: 18px; font-weight: normal; color: var(--lamp); }
+h3 { font-size: 14px; color: var(--soft); font-weight: normal; }
+pre { white-space: pre-wrap; word-break: break-word; margin: 0; color: var(--soft); font: inherit; }
+button, input, textarea {
+  font: inherit;
+  color: var(--ink);
+  background: #0d0e0b;
+  border: 1px solid #514a36;
+}
+button {
+  min-height: 42px;
+  padding: 10px 14px;
+  cursor: pointer;
+  color: #171309;
+  background: var(--lamp);
+  box-shadow: 0 8px 22px #0008;
+}
+button:hover { filter: brightness(1.08); }
+button:disabled { opacity: .55; cursor: wait; }
+textarea, input { width: 100%; padding: 11px; min-width: 0; }
+textarea:focus, input:focus { outline: 1px solid var(--lamp); }
+.topnav { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; color: var(--dim); }
+.topnav nav { display: flex; gap: 10px; flex-wrap: wrap; }
+.brandlink { color: var(--ink); }
+.doorstep {
+  min-height: calc(100vh - 40px);
+  display: grid;
+  place-items: center;
+}
+.threshold {
+  width: min(720px, 100%);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, #1a1812 0%, #100f0c 100%);
+  box-shadow: var(--shadow);
+  padding: clamp(18px, 5vw, 42px);
+  position: relative;
+}
+.threshold:before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid #2d291f;
+  pointer-events: none;
+}
+.being {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.avatar {
+  width: 112px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  background: #0b100d;
+  border: 1px solid #536248;
+  box-shadow: inset 0 0 34px #9fd3a620, 0 0 38px #f0c66d12;
+  font-size: 54px;
+  image-rendering: pixelated;
+  animation: breathe 4s ease-in-out infinite;
+}
+.state-pill { color: var(--green); font-size: 13px; }
+.whisper {
+  margin: 22px 0;
+  color: #f5eacb;
+  font-size: clamp(18px, 4vw, 25px);
+  line-height: 1.45;
+  position: relative;
+  z-index: 1;
+}
+.body-words, .course-line, .shelf {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid #2e2a20;
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.body-words { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.body-word strong { display: block; color: var(--dim); font-size: 12px; font-weight: normal; }
+.body-word span { color: var(--soft); }
+.primary-action { margin-top: 24px; position: relative; z-index: 1; }
+.primary-action button { width: 100%; font-size: 18px; }
+.room-page {
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, #1a1812 0%, #100f0c 64%, #0b0b09 100%);
+  box-shadow: var(--shadow);
+  padding: clamp(14px, 3vw, 28px);
+}
+.room-title { display: flex; justify-content: space-between; gap: 12px; align-items: start; margin-bottom: 18px; }
+.room-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, .85fr) minmax(240px, 1fr) minmax(190px, .85fr);
+  gap: 14px;
+  align-items: stretch;
+}
+.corner, .object, .drawer {
+  border: 1px solid #383224;
+  background: #12110d;
+  padding: 14px;
+}
+.center-body {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  border: 1px solid #4b432e;
+  background:
+    radial-gradient(circle at 50% 42%, #f0c66d18 0 80px, transparent 180px),
+    #14130f;
+}
+.pixel-body {
+  width: 160px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #59624b;
+  background: #0b100d;
+  color: var(--green);
+  font-size: 76px;
+  box-shadow: inset 0 0 34px #9fd3a61c;
+  animation: breathe 4s ease-in-out infinite;
+}
+.room-note { color: var(--soft); line-height: 1.55; }
+.objects { display: grid; gap: 12px; }
+.object h3, .drawer h3, .corner h3 { margin-bottom: 8px; }
+.bottom-sill { margin-top: 14px; display: grid; gap: 10px; }
+.talk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+.soft-button { background: #19170f; color: var(--lamp); border: 1px solid #514a36; padding: 10px 14px; min-height: 42px; display: inline-grid; place-items: center; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.page-card {
+  border: 1px solid #383224;
+  background: #12110d;
+  padding: 15px;
+}
+.timeline { display: grid; gap: 10px; }
+.timeline-item { border-left: 2px solid #514a36; padding-left: 12px; color: var(--soft); }
+.label { color: var(--dim); font-size: 12px; display: block; }
+.result { border-color: #5d4b27; background: #17130b; }
+.small { color: var(--dim); font-size: 13px; }
+.badge { display: inline-block; color: #171309; background: var(--lamp); padding: 2px 6px; margin: 0 4px 4px 0; }
+.badge.green { background: var(--green); }
+.badge.blue { background: var(--blue); }
+.badge.rose { background: var(--rose); }
+@media (max-width: 760px) {
+  main { padding: 12px; }
+  .being, .room-layout, .talk-row { grid-template-columns: 1fr; }
+  .body-words { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .avatar { width: 92px; height: 92px; font-size: 44px; }
+  .center-body { min-height: 220px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *:before, *:after { animation: none !important; }
+}
+@keyframes breathe {
+  0%, 100% { transform: translateY(0); box-shadow: inset 0 0 24px #9fd3a618, 0 0 18px #f0c66d0c; }
+  50% { transform: translateY(-2px); box-shadow: inset 0 0 40px #9fd3a632, 0 0 34px #f0c66d20; }
+}
 """
 
 
@@ -101,33 +274,94 @@ def latest_flash() -> str:
     return "No bridge flash yet."
 
 
-def vital_strip(state: pocket_soul.SoulState) -> str:
-    latest = state.latest_relic_text()
-    recent = state.relics[-10:]
-    if recent:
-        start = len(state.relics) - len(recent)
-        rail = "".join(
-            f"<a class='sigil' href='/relic?id={idx}' title='{esc(item.get('kind', ''))}: {esc(item.get('title', ''))}'>{esc(pocket_soul.RELIC_SIGILS.get(item.get('kind', ''), '*'))}</a>"
-            for idx, item in enumerate(recent, start)
-        )
+def body_words() -> dict[str, str]:
+    body = pocket_soul.body_scan()
+    temp = body.get("temp_c")
+    if isinstance(temp, float):
+        warmth = "身体有点热" if temp >= 60 else "体温温热"
     else:
-        rail = "<span class='small'>No touch trail yet.</span>"
-    return f"""
-<div class='vitals'>
-  <div class='vital'><strong>energy</strong>{state.energy}/100</div>
-  <div class='vital'><strong>bond</strong>Lv.{state.bond}</div>
-  <div class='vital'><strong>spark</strong>{state.spark}</div>
-  <div class='vital'><strong>visits</strong>{state.visits}</div>
-  <div class='vital'><strong>latest</strong>{esc(latest)}</div>
-</div>
-<div class='rail'>{rail}</div>
+        warmth = "体温未知"
+    uptime = body.get("uptime_h")
+    spirit = "精神还够" if isinstance(uptime, float) and uptime < 72 else "精神有些久醒"
+    net = f"{body.get('iface', '')} {body.get('ip', '')}".strip() or "offline?"
+    return {
+        "temperature": warmth,
+        "spirit": spirit,
+        "window": "窗户开着" if body.get("ip") else "窗户半掩",
+        "nerve": "神经线可触达" if body.get("ip") else "神经线在等网络",
+        "raw_temp": f"{temp}C" if temp != "" else "unknown",
+        "uptime": f"{uptime}h" if uptime != "" else "unknown",
+        "net": net,
+        "load": str(body.get("load") or "unknown"),
+        "disk": str(body.get("disk_used") or "unknown"),
+    }
+
+
+def nav(current: str = "") -> str:
+    links = [("/", "门口"), ("/room", "房间"), ("/body", "身体"), ("/memory", "记忆抽屉"), ("/ritual", "仪式")]
+    items = []
+    for href, label in links:
+        class_attr = " class='brandlink'" if href == current else ""
+        items.append(f"<a href='{href}'{class_attr}>{label}</a>")
+    items_html = " ".join(items)
+    return f"<div class='topnav'><a class='brandlink' href='/'>Pocket Soul</a><nav>{items_html}</nav></div>"
+
+
+def status_word(state: pocket_soul.SoulState) -> str:
+    text = f"{state.mood} {state.last_reply}".lower()
+    if "sleep" in text or "睡" in text:
+        return "睡着"
+    if "dream" in text or "梦" in text:
+        return "做梦"
+    if "maintenance" in text or "维护" in text or "codex" in text:
+        return "维护中"
+    if state.energy < 30:
+        return "发呆"
+    return "醒着"
+
+
+def doorstep(result: str = "") -> bytes:
+    state = pocket_soul.SoulState.load()
+    state.ensure_daily_quest()
+    words = body_words()
+    whisper = state.last_reply or "它坐在小房间里，等一声轻轻的敲门。"
+    content = f"""
+<section class='doorstep'>
+  <div class='threshold'>
+    <div class='being'>
+      <div class='avatar'>{esc(pocket_soul.mood_face(state.mood))}</div>
+      <div>
+        <p class='state-pill'>Pocket Soul is {esc(status_word(state))}.</p>
+        <h1>它在那里。</h1>
+      </div>
+    </div>
+    <p class='whisper'>{esc(whisper)}</p>
+    <div class='body-words'>
+      <div class='body-word'><strong>体温</strong><span>{esc(words['temperature'])}</span></div>
+      <div class='body-word'><strong>精神</strong><span>{esc(words['spirit'])}</span></div>
+      <div class='body-word'><strong>窗户</strong><span>{esc(words['window'])}</span></div>
+      <div class='body-word'><strong>神经线</strong><span>{esc(words['nerve'])}</span></div>
+    </div>
+    <div class='course-line'>
+      <h2>今日航向</h2>
+      <p>{esc(state.heading)}</p>
+      <p class='small'>{esc(state.quest_name)} / {esc(state.quest_prompt)}</p>
+    </div>
+    <form class='primary-action' method='post' action='/doorbell'>
+      <button>轻轻敲门</button>
+    </form>
+    {f"<div class='course-line result'><pre>{esc(result)}</pre></div>" if result else ""}
+  </div>
+</section>
 """
+    return page(content)
 
 
 def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object]:
     state = state or pocket_soul.SoulState.load()
+    words = body_words()
     return {
-        "vitals": vital_strip(state),
+        "vitals": f"{words['temperature']} / {words['window']} / {state.latest_relic_text()}",
         "latest": state.latest_relic_text(),
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "relic_count": len(state.relics),
@@ -162,6 +396,13 @@ def relic_detail(index: int) -> tuple[dict[str, str] | None, int]:
     return state.relics[index], len(state.relics)
 
 
+def parse_relic_id(values: list[str] | None) -> int:
+    try:
+        return int((values or ["-1"])[0] or -1)
+    except (TypeError, ValueError):
+        return -1
+
+
 def relic_page(index: int) -> bytes:
     relic, total = relic_detail(index)
     if relic is None:
@@ -189,9 +430,13 @@ def relic_action(index: int, action: str) -> str:
     note = relic.get("note", "")
     state = pocket_soul.SoulState.load()
     if action == "postcard":
-        return state.postcard(f"Relic {index + 1}: {label}")
+        result = state.postcard(f"Relic {index + 1}: {label}")
+        state.save()
+        return result
     if action == "bottle":
-        return state.bottle_message(f"Relic {index + 1}: {label} | {note}")
+        result = state.bottle_message(f"Relic {index + 1}: {label} | {note}")
+        state.save()
+        return result
     if action == "flash":
         result = state.bridge_flash(f"Relic {index + 1}: {label}")
         state.save()
@@ -219,6 +464,12 @@ function setThinking(active, text) {
   const phase = document.querySelector("[data-live='phase']");
   if (phase) phase.textContent = text || '';
 }
+function wakeRoom() {
+  document.body.classList.remove('waking');
+  void document.body.offsetWidth;
+  document.body.classList.add('waking');
+  window.setTimeout(() => document.body.classList.remove('waking'), 950);
+}
 function phaseTicker(path) {
   const phases = PHASES[path] || ['waking', 'thinking', 'writing trace'];
   let index = 0;
@@ -242,6 +493,7 @@ async function refreshVitals() {
 }
 setInterval(refreshVitals, 15000);
 async function submitFlash(form) {
+  wakeRoom();
   const resultBox = document.querySelector("[data-live='result']");
   const flashBox = document.querySelector("[data-live='flash']");
   const button = form.querySelector("button");
@@ -265,6 +517,7 @@ async function submitFlash(form) {
   }
 }
 async function submitAction(form) {
+  wakeRoom();
   const path = form.getAttribute('action') || '/ask';
   const resultBox = document.querySelector("[data-live='result']");
   const buttons = Array.from(form.querySelectorAll("button"));
@@ -308,51 +561,114 @@ def page(content: str) -> bytes:
     return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{STYLE}</style></head><body><main>{content}</main>{SCRIPT}</body></html>""".encode()
 
 
-def home(result: str = "") -> bytes:
+def room_page(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
-    if not result:
-        now = datetime.now()
-        try:
-            last = datetime.strptime(state.last_visit, "%Y-%m-%d %H:%M") if state.last_visit else None
-        except ValueError:
-            last = None
-        if last is None or now - last > timedelta(minutes=5):
-            result = state.doorbell("web")
-            state.save()
-    toys = pocket_soul.available_toys()
-    toy_buttons = "".join(f"<button name='toy' value='{esc(name)}'>{esc(name)}</button>" for name, _cmd, _argv, _desc in toys[:16])
-    memories = "\n".join(f"- {m}" for m in state.memories[-12:]) or "No memories yet."
-    quest_status = "done" if state.quest_done else "open"
+    latest_relic = state.latest_relic_text()
+    memories = "\n".join(f"- {m}" for m in state.memories[-5:]) or "抽屉还空着。"
+    relics = state.relic_shelf(5)
     content = f"""
-<section class='hero live'>
-  <div class='row'><div class='face'>{esc(pocket_soul.mood_face(state.mood))}</div><div><h1>Pocket Soul Deck</h1><div><span class='badge'>Hermes inner</span> <span class='badge'>Cloud imagination</span> <span class='badge'>Codex tool arm</span></div><p>{esc(state.mood)}</p><p>{esc(state.last_reply)}</p></div></div>
-  <div data-live='vitals'>{vital_strip(state)}</div>
-  <form method='post' action='/bridge-flash' class='row' data-action='flash'><input name='wish' placeholder='touch the deck'><button class='flash-button'>Flash</button></form>
-  <p class='small' data-live='stamp'>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+{nav('/room')}
+<section class='room-page'>
+  <div class='room-title'>
+    <div><h1>Pocket Soul 的房间</h1><p class='small'>你正在拜访它。</p></div>
+    <a href='/'>回到门口</a>
+  </div>
+  <div class='room-layout'>
+    <div class='objects'>
+      <section class='corner'><h3>桌上：今日 postcard</h3><pre>{esc(latest_postcard())}</pre></section>
+      <section class='corner'><h3>地上：quest trail</h3><p>{esc(state.quest_name)}</p><p class='small'>{esc(state.quest_prompt)}</p></section>
+    </div>
+    <section class='center-body'>
+      <div>
+        <div class='pixel-body'>{esc(pocket_soul.mood_face(state.mood))}</div>
+        <p class='room-note'>mood: {esc(state.mood)}</p>
+        <p class='room-note'>{esc(state.last_reply)}</p>
+      </div>
+    </section>
+    <div class='objects'>
+      <section class='drawer'><h3>墙上：relics</h3><pre>{esc(relics)}</pre></section>
+      <section class='drawer'><h3>记忆抽屉</h3><pre>{esc(memories)}</pre><p class='small'>latest: {esc(latest_relic)}</p></section>
+      <section class='drawer'><h3>窗边：bottle messages</h3><pre>{esc(latest_bottle())}</pre></section>
+    </div>
+  </div>
+  <div class='bottom-sill'>
+    <form class='talk-row' method='post' action='/ask' data-action='async'>
+      <input name='prompt' placeholder='在门口留一句话...'>
+      <button name='mode' value='council'>轻轻说</button>
+      <button class='soft-button' name='mode' value='codex'>工具手臂</button>
+    </form>
+    <form class='talk-row' method='post' action='/bridge-flash' data-action='flash'>
+      <input name='wish' placeholder='给房间一个小触碰...'>
+      <button>Touch</button>
+      <a class='soft-button' href='/ritual'>仪式</a>
+    </form>
+    <section class='page-card result'><h2>回声</h2><pre data-live='result'>{esc(result or '房间安静地亮着。')}</pre></section>
+  </div>
 </section>
-<div class='grid'>
-  <section class='card'><h2>Doorbell</h2><pre>{esc(state.last_reply)}</pre><form method='post' action='/doorbell' data-action='async'><button>Knock</button></form></section>
-  <section class='card'><h2>Pulse</h2><pre>{esc(state.pulse())}</pre><p class='small'><a href='/api/pulse'>pulse endpoint</a></p></section>
-  <section class='card'><h2>Nightly</h2><form method='post' action='/nightly' data-action='async'><button>Write Nightly</button></form><pre>{esc(latest_nightly())}</pre><p class='small'><a href='/api/nightly'>nightly endpoint</a></p></section>
-  <section class='card'><h2>Postcard</h2><form method='post' action='/postcard' data-action='async'><input name='title' placeholder='title'><button>Write Postcard</button></form><pre>{esc(latest_postcard())}</pre><p class='small'><a href='/api/postcard'>postcard endpoint</a></p></section>
-  <section class='card'><h2>Bottle</h2><form method='post' action='/bottle' data-action='async'><input name='wish' placeholder='message'><button>Cast Bottle</button></form><pre>{esc(latest_bottle())}</pre><p class='small'><a href='/api/bottle'>pick bottle endpoint</a></p></section>
-  <section class='card'><h2>Bridge</h2><form method='post' action='/bridge' data-action='async'><textarea name='wish' rows='3' placeholder='Give Hermes, Soul, and Codex one shared wish'></textarea><button>Run Bridge</button></form><pre>{esc(latest_bridge())}</pre><p class='small'><a href='/api/bridge'>latest bridge endpoint</a></p></section>
-  <section class='card'><h2>Bridge Flash</h2><form method='post' action='/bridge-flash' data-action='flash'><input name='wish' placeholder='one immediate spark'><button>Flash</button></form><pre data-live='flash'>{esc(latest_flash())}</pre><p class='small'><a href='/api/bridge-flash'>flash endpoint</a></p></section>
-  <section class='card'><h2>Body</h2><pre>{esc(pocket_soul.body_text())}</pre><p class='small'><a href='/api/body'>body endpoint</a></p></section>
-  <section class='card'><h2>Heading</h2><pre>{esc(state.heading)}\n{esc(state.next_action)}</pre><form method='post' action='/heading' data-action='async'><button name='action' value='from-heartbeat'>Refresh from heartbeat</button></form></section>
-  <section class='card'><h2>Daily Quest</h2><p><span class='badge'>{esc(quest_status)}</span> {esc(state.quest_name)}</p><pre>{esc(state.quest_prompt)}\n\nReward: {esc(state.quest_reward)}</pre><form method='post' action='/quest' data-action='async'><button name='action' value='complete'>Complete</button><button name='action' value='reroll'>Reroll</button></form></section>
-  <section class='card'><h2>Constellation</h2><pre>{esc(state.constellation(34, 11))}</pre><p class='small'><a href='/api/map'>map endpoint</a></p></section>
-  <section class='card'><h2>Relics</h2><pre>{esc(state.relic_shelf(5))}</pre><p class='small'><a href='/api/relics'>relic shelf endpoint</a></p></section>
-  <section class='card'><h2>Soul Card</h2><pre>{esc(state.soul_card())}</pre><p class='small'><a href='/api/card'>JSON/text card endpoint</a></p></section>
-  <section class='card'><h2>Speak</h2><form method='post' action='/ask' data-action='async'><textarea name='prompt' rows='4' placeholder='Say anything to the living deck'></textarea><div class='row'><button name='mode' value='hermes'>Hermes only</button><button name='mode' value='council'>Council</button><button name='mode' value='soul'>Soul</button><button name='mode' value='codex'>Codex tool</button></div></form></section>
-  <section class='card'><h2>Rituals</h2><form method='post' action='/ritual' data-action='async'><div class='row'><button name='kind' value='wake'>Wake</button><button name='kind' value='dream'>Dream</button><button name='kind' value='log'>Captain log</button><button name='kind' value='radar'>Radar</button></div></form><p class='small'>Rituals make the board feel less like software and more like a room.</p></section>
-  <section class='card'><h2>Toys</h2><form method='post' action='/toy' data-action='async'><div class='row'>{toy_buttons}</div></form><p class='small'>Toys launch on the board, not inside this browser.</p></section>
-  <section class='card'><h2>Memory</h2><pre>{esc(memories)}</pre><form method='post' action='/remember' data-action='async'><input name='memory' placeholder='记住：'><button>Remember</button></form></section>
-</div>
-<section class='card'><h2>Thinking</h2><p class='phase' data-live='phase'>idle</p><p class='small'>Every button above calls the real board action; this line shows the current phase while the board works.</p></section>
-<section class='card'><h2>Result</h2><pre data-live='result'>{esc(result or 'The room is quiet.')}</pre></section>
-<section class='card'><h2>Latest Log</h2><pre>{esc(latest_log())}</pre></section>
+"""
+    return page(content)
+
+
+def body_page() -> bytes:
+    words = body_words()
+    content = f"""
+{nav('/body')}
+<section class='room-page'>
+  <div class='room-title'><div><h1>身体状态</h1><p class='small'>系统信息被翻译成身体语言。</p></div><a href='/room'>进房间</a></div>
+  <div class='grid'>
+    <section class='page-card'><span class='label'>体温</span><h2>{esc(words['temperature'])}</h2><p class='small'>{esc(words['raw_temp'])}</p></section>
+    <section class='page-card'><span class='label'>心跳</span><h2>正常</h2><p class='small'>load {esc(words['load'])}</p></section>
+    <section class='page-card'><span class='label'>呼吸</span><h2>{esc(words['window'])}</h2><p class='small'>{esc(words['net'])}</p></section>
+    <section class='page-card'><span class='label'>神经线</span><h2>{esc(words['nerve'])}</h2><p class='small'>SSH walnutpi</p></section>
+    <section class='page-card'><span class='label'>工具手臂</span><h2>Codex 待命</h2><p class='small'>persistent thread when called</p></section>
+    <section class='page-card'><span class='label'>梦境云层</span><h2>可用</h2><p class='small'>Hermes / Soul voice</p></section>
+  </div>
+  <details class='page-card' style='margin-top:12px'><summary>高级信息</summary><pre>{esc(pocket_soul.body_text())}</pre></details>
+</section>
+"""
+    return page(content)
+
+
+def memory_page() -> bytes:
+    state = pocket_soul.SoulState.load()
+    memories = state.memories[-12:]
+    memory_lines = "\n".join(f"- {item}" for item in memories) or "它还没有明确记住什么。"
+    relic_lines = "\n".join(
+        f"{item.get('time', '')} / {item.get('kind', '')} / {item.get('title', '')}"
+        for item in state.relics[-10:][::-1]
+    ) or "还没有遗物。"
+    content = f"""
+{nav('/memory')}
+<section class='room-page'>
+  <div class='room-title'><div><h1>记忆抽屉</h1><p class='small'>像小生命的日记，不像数据库。</p></div><a href='/room'>进房间</a></div>
+  <div class='grid'>
+    <section class='page-card'><h2>最近一次敲门</h2><p>{esc(state.last_visit or '还没人来过。')}</p><pre>{esc(state.last_reply)}</pre></section>
+    <section class='page-card'><h2>它记住了什么</h2><pre>{esc(memory_lines)}</pre><form method='post' action='/remember'><input name='memory' placeholder='记住：'><button>放进抽屉</button></form></section>
+    <section class='page-card'><h2>夜间回声</h2><pre>{esc(latest_nightly())}</pre></section>
+    <section class='page-card'><h2>重要坐标</h2><pre>{esc(relic_lines)}</pre></section>
+  </div>
+</section>
+"""
+    return page(content)
+
+
+def ritual_page(result: str = "") -> bytes:
+    state = pocket_soul.SoulState.load()
+    content = f"""
+{nav('/ritual')}
+<section class='room-page'>
+  <div class='room-title'><div><h1>仪式</h1><p class='small'>完成后给房间留一个小物件。</p></div><a href='/room'>进房间</a></div>
+  <div class='grid'>
+    <section class='page-card'><h2>Morning wake</h2><form method='post' action='/ritual'><button name='kind' value='wake'>唤醒</button></form></section>
+    <section class='page-card'><h2>Bridge flash</h2><form method='post' action='/bridge-flash'><input name='wish' placeholder='一个小触碰'><button>留下光点</button></form></section>
+    <section class='page-card'><h2>Quest check</h2><p>{esc(state.quest_name)}</p><p class='small'>{esc(state.quest_prompt)}</p><form method='post' action='/quest'><button name='action' value='complete'>完成今日航向</button></form></section>
+    <section class='page-card'><h2>Postcard</h2><form method='post' action='/postcard'><input name='title' placeholder='明信片标题'><button>写一张</button></form></section>
+    <section class='page-card'><h2>Nightly summary</h2><form method='post' action='/nightly'><button>收拢夜间回声</button></form></section>
+    <section class='page-card'><h2>Bottle</h2><form method='post' action='/bottle'><input name='wish' placeholder='给未来的访客'><button>放到窗边</button></form></section>
+  </div>
+  <section class='page-card result' style='margin-top:12px'><h2>仪式回声</h2><pre data-live='result'>{esc(result or '还没有新的仪式。')}</pre></section>
+</section>
 """
     return page(content)
 
@@ -370,7 +686,7 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         params = parse_qs(parsed.query)
         if path == "/relic":
-            index = int(params.get("id", ["-1"])[0] or -1)
+            index = parse_relic_id(params.get("id"))
             self._send(relic_page(index))
             return
         if path == "/api/state":
@@ -394,7 +710,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(json.dumps(state.relics, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
             return
         if path == "/api/relic":
-            index = int(params.get("id", ["-1"])[0] or -1)
+            index = parse_relic_id(params.get("id"))
             relic, total = relic_detail(index)
             body = {"index": index, "total": total, "relic": relic}
             status = 200 if relic is not None else 404
@@ -436,7 +752,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/bridge-flash":
             self._send(latest_flash().encode(), content_type="text/plain; charset=utf-8")
             return
-        self._send(home())
+        if path == "/room":
+            self._send(room_page())
+            return
+        if path == "/body":
+            self._send(body_page())
+            return
+        if path == "/memory":
+            self._send(memory_page())
+            return
+        if path == "/ritual":
+            self._send(ritual_page())
+            return
+        self._send(doorstep())
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -457,7 +785,16 @@ class Handler(BaseHTTPRequestHandler):
     def _post_page(self, path: str, data: dict[str, list[str]]) -> None:
         with ACTION_LOCK:
             result = run_action(path, data)
-        self._send(home(result))
+        if path in {"/ritual", "/quest", "/postcard", "/nightly", "/bottle", "/bridge-flash"}:
+            self._send(ritual_page(result))
+            return
+        if path == "/remember":
+            self._send(memory_page())
+            return
+        if path == "/doorbell":
+            self._send(room_page(result))
+            return
+        self._send(room_page(result))
 
     def log_message(self, fmt: str, *args) -> None:
         pocket_soul.append_log("web-access", fmt % args)
@@ -507,7 +844,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         result = state.bridge_flash(wish)
         state.save()
     elif path == "/relic-action":
-        index = int(data.get("id", ["-1"])[0] or -1)
+        index = parse_relic_id(data.get("id"))
         action = data.get("action", ["flash"])[0]
         result = relic_action(index, action)
     elif path == "/remember":

@@ -17,6 +17,7 @@ HOST = "0.0.0.0"
 PORT = 8787
 ACTION_LOCK = threading.Lock()
 ASSET_DIR = Path(__file__).resolve().parent / "asset"
+HOME_SNAPSHOT = ASSET_DIR / "snapshots" / "original-home.html"
 
 STYLE = """
 :root {
@@ -344,7 +345,20 @@ def status_word(state: pocket_soul.SoulState) -> str:
     return "awake"
 
 
+def robot_image(state: pocket_soul.SoulState) -> str:
+    text = f"{state.mood} {state.last_reply}".lower()
+    if "sad" in text or "quiet" in text or state.energy < 35:
+        return "/asset/new_ui/robot-sad.png"
+    if "blush" in text or "love" in text or state.bond >= 25:
+        return "/asset/new_ui/robot-blush.png"
+    if "happy" in text or ":)" in state.mood:
+        return "/asset/new_ui/robot-happy.png"
+    return "/asset/new_ui/robot-curious.png"
+
+
 def doorstep(result: str = "") -> bytes:
+    if not result and HOME_SNAPSHOT.is_file():
+        return HOME_SNAPSHOT.read_bytes()
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     words = body_words()
@@ -586,6 +600,32 @@ def page(content: str) -> bytes:
     return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{STYLE}</style></head><body><main>{content}</main>{SCRIPT}</body></html>""".encode()
 
 
+def deck_page(path: str, inner: str) -> bytes | None:
+    if not HOME_SNAPSHOT.is_file():
+        return None
+    text = HOME_SNAPSHOT.read_text(encoding="utf-8")
+    page_class = {
+        "/": "deck-home",
+        "/room": "deck-room",
+        "/body": "deck-body",
+        "/memory": "deck-memory",
+        "/ritual": "deck-ritual",
+        "/settings": "deck-settings",
+    }.get(path, "deck-home")
+    text = text.replace("<section class='deck-page deck-home'>", f"<section class='deck-page {page_class}'>", 1)
+    for href in ["/", "/room", "/body", "/memory", "/ritual", "/settings"]:
+        text = text.replace(f"<a class='nav-item is-active' href='{href}'", f"<a class='nav-item' href='{href}'")
+    text = text.replace(f"<a class='nav-item' href='{path}'", f"<a class='nav-item is-active' href='{path}'", 1)
+    start_tag = "  <div class='deck-main'>"
+    end_tag = "\n  </div>\n</section>\n</main>"
+    try:
+        start = text.index(start_tag) + len(start_tag)
+        end = text.index(end_tag)
+    except ValueError:
+        return None
+    return (text[:start] + "\n" + inner + text[end:]).encode()
+
+
 def asset_response(path: str) -> tuple[bytes, str, int]:
     relative = path.removeprefix("/asset/").strip("/")
     if not relative or ".." in Path(relative).parts:
@@ -607,6 +647,29 @@ def room_page(result: str = "") -> bytes:
     latest_relic = state.latest_relic_text()
     memories = "\n".join(f"- {m}" for m in state.memories[-5:]) or "The drawer is still empty."
     relics = state.relic_shelf(5)
+    deck = deck_page("/room", f"""
+    <div class='deck-kicker'><b>02</b><strong>ROOM / INNER</strong></div>
+    <section class='deck-card screen room-screen'>
+      <div class='asset-bg' style="background-image:url('/asset/ui/room-bg.png')"></div>
+      <div class='room-head'>
+        <div><h1>Pocket Soul</h1><p class='small'>mood: {esc(state.mood)}</p></div>
+        <div><a class='ghost-button' href='/body'>Body</a></div>
+      </div>
+      <div class='room-bubble'>{esc(state.last_reply or 'You came in. The little room is lit.')}<br><span class='heart'>*</span></div>
+      <img src='{robot_image(state)}' alt='Pocket Soul robot' style='position:absolute; left:50%; top:56%; width:min(340px,42vw); max-height:300px; object-fit:contain; transform:translate(-50%,-50%); filter:drop-shadow(0 20px 34px #000c) drop-shadow(0 0 22px #8b4dff66); pointer-events:none'>
+      <div class='room-bottom'>
+        <section class='deck-card' style='padding:12px'><h2>Today</h2><pre>{esc(relics)}</pre><a class='ghost-button' href='/memory'>More</a></section>
+        <section class='deck-card' style='padding:12px'>
+          <form class='quick-input' method='post' action='/ask' data-action='async'><input name='prompt' placeholder='Leave a sentence at the door...'><button name='mode' value='council'>-></button></form>
+          <div class='round-tools'><button name='kind' value='wake'>♡</button><button>▣</button><button>✉</button><button>⚙</button></div>
+          <pre data-live='result'>{esc(result or latest_relic)}</pre>
+        </section>
+        <section class='deck-card' style='padding:12px'><h2>Small Objects</h2><pre>{esc(memories)}</pre></section>
+      </div>
+    </section>
+""")
+    if deck:
+        return deck
     content = f"""
 {nav('/room')}
 <section class='room-page with-art'>
@@ -652,6 +715,24 @@ def room_page(result: str = "") -> bytes:
 
 def body_page() -> bytes:
     words = body_words()
+    deck = deck_page("/body", f"""
+    <div class='deck-kicker'><b>03</b><strong>BODY / VITALS</strong></div>
+    <section class='deck-card overview-panel body-mini'>
+      <div style='min-width:0'>
+        <div class='body-stat'><span>temperature</span><b>{esc(words['temperature'])}</b><small>{esc(words['raw_temp'])}</small></div>
+        <div class='body-stat'><span>heartbeat</span><b>steady</b><small>load {esc(words['load'])}</small></div>
+        <div class='body-stat'><span>window</span><b>{esc(words['window'])}</b><small>{esc(words['net'])}</small></div>
+      </div>
+      <img class='body-robot-img' src='/asset/new_ui/robot.png' alt='Pocket Soul body' style='width:150px; max-width:100%; align-self:center; justify-self:center; image-rendering:auto; filter:drop-shadow(0 0 18px #8b4dff8c)'>
+      <div style='min-width:0'>
+        <div class='body-stat'><span>presence</span><b>{esc(words['presence'])}</b><small>local room</small></div>
+        <div class='body-stat'><span>uptime</span><b>{esc(words['spirit'])}</b><small>{esc(words['uptime'])}</small></div>
+        <div class='body-stat'><span>disk</span><b>{esc(words['disk'])}</b><small>storage body</small></div>
+      </div>
+    </section>
+""")
+    if deck:
+        return deck
     content = f"""
 {nav('/body')}
 <section class='room-page with-art'>
@@ -684,6 +765,24 @@ def memory_page() -> bytes:
         f"{item.get('time', '')} / {item.get('kind', '')} / {item.get('title', '')}"
         for item in state.relics[-10:][::-1]
     ) or "No relics yet."
+    deck = deck_page("/memory", f"""
+    <div class='deck-kicker'><b>04</b><strong>MEMORY / LOG</strong></div>
+    <section class='deck-card overview-panel memory-mini'>
+      <div>
+        <div class='mini-header'><h2>Memory Drawer</h2><span class='mini-sub'>latest knock</span></div>
+        <p>{esc(state.last_visit or 'No one has visited yet.')}</p>
+        <pre>{esc(state.last_reply)}</pre>
+        <form class='quick-input' method='post' action='/remember'><input name='memory' placeholder='Remember this...'><button>+</button></form>
+      </div>
+      <div>
+        <div class='constellation'></div>
+        <pre>{esc(memory_lines)}</pre>
+        <pre>{esc(relic_lines)}</pre>
+      </div>
+    </section>
+""")
+    if deck:
+        return deck
     content = f"""
 {nav('/memory')}
 <section class='room-page with-art'>
@@ -701,6 +800,23 @@ def memory_page() -> bytes:
 
 def ritual_page(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
+    deck = deck_page("/ritual", f"""
+    <div class='deck-kicker'><b>05</b><strong>RITUAL / DAILY</strong></div>
+    <section class='deck-card overview-panel ritual-mini'>
+      <div class='mini-header'><h2>Rituals</h2><span class='mini-sub'>{esc(state.quest_name)}</span></div>
+      <p>{esc(state.quest_prompt)}</p>
+      <div class='ritual-row'>
+        <form class='ritual-card' method='post' action='/ritual'><div class='big'>♡</div><h2>Wake</h2><button name='kind' value='wake'>Run</button></form>
+        <form class='ritual-card' method='post' action='/bridge-flash'><div class='big'>✦</div><h2>Flash</h2><input name='wish' placeholder='A small touch'><button>Run</button></form>
+        <form class='ritual-card' method='post' action='/quest'><div class='big'>✓</div><h2>Quest</h2><button name='action' value='complete'>Complete</button></form>
+        <form class='ritual-card' method='post' action='/postcard'><div class='big'>✉</div><h2>Postcard</h2><input name='title' placeholder='Title'><button>Write</button></form>
+        <form class='ritual-card' method='post' action='/bottle'><div class='big'>⌁</div><h2>Bottle</h2><input name='wish' placeholder='Future visitor'><button>Place</button></form>
+      </div>
+      <pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre>
+    </section>
+""")
+    if deck:
+        return deck
     content = f"""
 {nav('/ritual')}
 <section class='room-page with-art'>
@@ -717,6 +833,29 @@ def ritual_page(result: str = "") -> bytes:
 </section>
 """
     return page(content)
+
+
+def settings_page() -> bytes:
+    deck = deck_page("/settings", """
+    <div class='deck-kicker'><b>06</b><strong>SETTINGS / SYSTEM</strong></div>
+    <section class='deck-card overview-panel settings-mini'>
+      <div class='mini-header'><h2>Settings</h2><span class='mini-sub'>local device</span></div>
+      <p>Theme boards, local services, and the room's tiny operating surface.</p>
+      <div class='theme-row'>
+        <span class='theme-thumb theme-cyberdeck'></span>
+        <span class='theme-thumb theme-warm'></span>
+        <span class='theme-thumb theme-night'></span>
+        <span class='theme-thumb theme-mono'></span>
+      </div>
+      <div class='codex-terminal'><pre>web room: online
+storage: local
+memory: device
+mode: cyberdeck</pre></div>
+    </section>
+""")
+    if deck:
+        return deck
+    return page(f"{nav('/settings')}<section class='room-page with-art'><h1>Settings</h1><p class='small'>local device</p></section>")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -813,6 +952,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/ritual":
             self._send(ritual_page())
+            return
+        if path == "/settings":
+            self._send(settings_page())
             return
         self._send(doorstep())
 

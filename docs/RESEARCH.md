@@ -24,20 +24,20 @@ This project uses research as fuel for rituals and product shape, not as a stati
 
 ## Current MVP Formula
 
-`Pocket Soul Deck = AI Tamagotchi + pocket cyberdeck + Hermes inner consciousness + web cockpit + travel log + translator + terminal arcade + Codex tool arm`.
+`Pocket Soul Deck = AI Tamagotchi + pocket cyberdeck + Hermes inner consciousness + web cockpit + travel log + translator + terminal arcade`.
 
 ## Research Tools
 
-- Host: DeerFlow and opencli for broad multi-platform research.
+- DeerFlow and opencli for broad multi-platform research.
 - Board: static `research-radar.sh` when network or runtime is limited.
 
-## Host-To-Board Flow
+## Research Flow
 
-Use the host for broad sources that need browsers, accounts, or heavier runtime:
+Use broader tools for sources that need browsers, accounts, or heavier runtime:
 
 ```text
 GitHub / Kickstarter / Reddit / Hacker News / Product Hunt / YouTube / X
-  -> host DeerFlow/opencli summary
+  -> DeerFlow/opencli summary
   -> short radar card
   -> board state/radar-*.md
   -> RADAR mode, HERMES mode, or heartbeat
@@ -56,5 +56,5 @@ The board should receive distilled ideas, not giant scraped dumps. A good radar 
 - What daily rituals make AI hardware feel alive after one week?
 - What should a Soul Card contain?
 - Which terminal toys become meaningful if tied to mood and memory?
-- How can Hermes safely propose self-modifications and ask Codex to execute them?
+- How can Hermes safely propose self-evolution without turning the room into a settings panel?
 - What interactions stop feeling like a chatbot and start feeling like visiting a tiny room?

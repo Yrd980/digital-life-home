@@ -16,6 +16,4 @@ inner = pocket_soul.run_hermes(prompt)
 print(inner)
 print("\n== Pocket Soul council ==")
 print(pocket_soul.council_reply(prompt, pocket_soul.SoulState.load().memories))
-print("\n== Codex tool arm ==")
-print(pocket_soul.run_codex("You are only the tool arm for Pocket Soul. Give a concise action plan for: " + prompt))
 PY

@@ -23,6 +23,7 @@ The shared Bridge wish is the primary Deep Turn.
 The web room runs at:
 
 ```text
+http://127.0.0.1:8787
 http://192.168.1.30:8787
 ```
 
@@ -61,7 +62,6 @@ Capabilities:
 - Talk to Hermes only
 - Talk to Council mode
 - Talk to Soul cloud voice
-- Ask Codex as the persistent SDK-thread tool arm
 - Trigger rituals
 - Save memories
 - Use the AI-native cockpit first screen: current heading, next action, shared Bridge wish, quick layer talk, Bridge Flash, live vitals, and thinking phase
@@ -177,14 +177,12 @@ curl -sS http://127.0.0.1:8787/api/bottle
 curl -sS http://127.0.0.1:8787/api/bridge
 ```
 
-Use the local endpoint from the board and `http://192.168.1.30:8787` from another device on the LAN.
+Use `127.0.0.1` on the board and the LAN address from another device.
 
 ## Next Web Evolutions
 
 - Show `state/evolution.md` inside the cockpit.
-- Show the current Codex thread id from `state/codex-thread.json`.
 - Add a radar inbox for DeerFlow/opencli idea cards.
 - Stream Bridge output instead of waiting for the full turn.
 - Add a stronger visual pulse animation when Bridge Flash is pressed.
 - Add richer relic detail views, such as related log excerpts and generated summaries.
-- Stream Codex app-server turn events when the app-server bridge is added.

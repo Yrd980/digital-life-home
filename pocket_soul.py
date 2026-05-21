@@ -24,7 +24,7 @@ STATE_DIR = APP_DIR / "state"
 LOG_DIR = STATE_DIR / "logs"
 STATE_FILE = STATE_DIR / "soul.json"
 STATE_LOCK = STATE_DIR / "soul.lock"
-OPENAI_AUTH = Path.home() / ".codex" / "auth.json"
+OPENAI_AUTH = Path.home() / ".openai" / "auth.json"
 DEFAULT_BASE_URL = "https://rehdasu.cn"
 DEFAULT_MODEL = "gpt-5.5"
 TOY_PATH = os.environ.get("PATH", "") + os.pathsep + "/usr/games"
@@ -818,10 +818,6 @@ def call_model(prompt: str, *, instruction: str = "") -> str:
     return ("\n".join(chunks).strip() or "I thought, but did not form a reply.")
 
 
-def run_codex(prompt: str) -> str:
-    return "Repairs happen from the host computer over SSH, not inside the device UI."
-
-
 def run_hermes(prompt: str) -> str:
     try:
         out = subprocess.check_output(
@@ -1215,10 +1211,6 @@ class DeckApp:
         if text.startswith("/toy ") or text.startswith("/play "):
             target = text.split(" ", 1)[1].strip()
             self.state.last_reply = self.launch_toy(target)
-            self.draw()
-            return
-        if text.startswith("/codex"):
-            self.state.last_reply = "Host-side repair only. SSH from your computer."
             self.draw()
             return
         if text.startswith("/dream"):

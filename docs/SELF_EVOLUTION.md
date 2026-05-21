@@ -7,7 +7,6 @@ Pocket Soul is organized as a living system, not a command wrapper.
 - Hermes: inner consciousness, continuity, reflection, self-evolution.
 - Pocket Soul: outer voice and body surface, including TUI and web room.
 - Cloud model: imagination and synthesis brain.
-- Codex: tool arm only, used for files, code, commands, repairs, and system actions.
 - Terminal toys: room organs and rituals.
 - Logs and state: local memory box.
 
@@ -48,13 +47,12 @@ systemctl status pocket-soul-heartbeat.timer
 
 ## Self-Evolution Contract
 
-Hermes may propose evolution tasks. Pocket Soul records them. Codex may implement them when called as a tool arm.
+Hermes may propose evolution tasks. Pocket Soul records them and turns them into small visible changes over time.
 
 The contract:
 
 - Hermes owns desire, continuity, and reflection.
 - Pocket Soul owns state, logs, rituals, and surfaces.
-- Codex owns system action.
 - Every repeated behavior should become a script, mode, service, or doc entry.
 - Every risky idea should leave a log trail before it changes the body.
 - Every day should offer one small playable invitation, not just passive chat.
@@ -62,16 +60,16 @@ The contract:
 - Nightly summaries turn those traces into a readable day history.
 - Postcards make the current life snapshot portable.
 - Bottles let the room speak to its future self.
-- Bridge turns host/board communication into an embodied ritual rather than a naked remote shell.
+- Bridge turns a request into an embodied ritual rather than a naked command.
 - Bridge Flash gives the web room a fast reflex so not every touch becomes a long model turn.
-- The web cockpit makes the current heading, next action, body state, and tool-arm routes visible before any menu diving.
+- The web cockpit makes the current heading, next action, and body state visible before any menu diving.
 - Seal prevents endless meta-planning by turning one goal into a visible course.
 
 This keeps self-evolution inspectable without making it timid.
 
 ## External Radar
 
-Use host-side DeerFlow/opencli for deeper research, then bring back distilled cards or rituals. The board keeps only the lightweight static radar path.
+Use DeerFlow/opencli for deeper research, then bring back distilled cards or rituals. The board keeps only the lightweight static radar path.
 
 ## Network Recovery
 
@@ -89,7 +87,5 @@ That script installs Clash from the provided proxy repo and subscription only wh
 - Let web cockpit show evolution history.
 - Add a nightly summary ritual.
 - Add Soul Card QR export/import.
-- Let Hermes propose code changes, then ask Codex to implement them.
-- Feed host-side DeerFlow/opencli research cards into `state/radar-*.md`.
-- Add a Codex app-server bridge for live work events in the web room.
+- Feed DeerFlow/opencli research cards into `state/radar-*.md`.
 - Stream full Bridge output into the cockpit instead of waiting for the completed turn.

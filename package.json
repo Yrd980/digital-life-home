@@ -1,18 +1,15 @@
 {
   "name": "digital-life-home",
   "version": "1.0.0",
-  "description": "Pocket Soul Deck is a living cyberdeck system for WalnutPi ZeroW.",
+  "author": "",
   "main": "index.js",
+  "description": "Pocket Soul Deck is a living cyberdeck system for WalnutPi ZeroW.",
   "directories": {
     "doc": "docs"
   },
+  "keywords": [],
+  "license": "ISC",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@openai/codex-sdk": "^0.132.0"
   }
 }

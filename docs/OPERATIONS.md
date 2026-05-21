@@ -36,23 +36,21 @@ pocket-nightly
 pocket-postcard
 pocket-bottle
 pocket-pick-bottle
-pocket-bridge "让 Hermes 和 Codex 一起决定下一步"
+pocket-bridge "让 Hermes 决定下一步"
 ./scripts/summon.sh "下一步进化什么"
 ./scripts/toys.sh --list
 ./scripts/heartbeat.sh
-codex-thread "用一句话说你在延续哪个 thread"
 git status --short
 ```
 
-From the host, enter the board through the SSH alias:
+## Connection
 
 ```bash
 ssh walnutpi
 ssh walnutpi 'cd /root/digital-life-home && pocket-pulse'
 ssh walnutpi 'cd /root/digital-life-home && systemctl --no-pager --plain status pocket-soul-web'
+ssh walnutpi 'cd /root/digital-life-home && systemctl restart pocket-soul-web'
 ```
-
-The host shell may be fish; keep remote commands quoted so they run on the board as one command string.
 
 ## Touch, Stay, Turn
 
@@ -91,7 +89,7 @@ curl -sS http://127.0.0.1:8787/api/body | python3 -m json.tool
 Meaningful rituals that leave a trace:
 
 ```bash
-pocket-bridge "让 Hermes 和 Codex 一起决定下一步"
+pocket-bridge "让 Hermes 决定下一步"
 pocket-nightly
 pocket-postcard "今天的小屋"
 pocket-bottle "给未来的我：继续出海"
@@ -110,7 +108,7 @@ curl -sS http://127.0.0.1:8787/api/live | python3 -m json.tool
 curl -sS http://127.0.0.1:8787/api/state | python3 -m json.tool | head
 ```
 
-The web first screen is the cockpit: identity, mood, heading, next action, live vitals, one shared Bridge wish, quick Hermes/Council/Soul/Codex contact, Bridge Flash, thinking phase, and Daily Quest.
+The web first screen is the cockpit: identity, mood, heading, next action, live vitals, one shared Bridge wish, quick Hermes/Council/Soul contact, Bridge Flash, thinking phase, and Daily Quest.
 
 Read it in layers:
 - Light Touch: Bridge Flash and doorbell should be the fastest visible actions
@@ -235,53 +233,20 @@ curl -sS http://127.0.0.1:8787/api/bottle
 
 Bottles are tiny future-facing messages. The API picks an existing bottle without creating a new one.
 
-## Host Bridge
-
-The host should talk to the board through the SSH alias, not one-shot `sshpass`:
-
-```bash
-ssh walnutpi 'cd /root/digital-life-home && pocket-bridge "今晚让自己更像一个有身体的小生命"'
-```
-
-Current SSH reuse shape on the host:
-
-```sshconfig
-Host walnutpi
-    HostName 192.168.1.30
-    User root
-    IdentityFile ~/.ssh/id_ed25519
-    IdentitiesOnly yes
-    StrictHostKeyChecking accept-new
-    UserKnownHostsFile ~/.ssh/known_hosts
-    ControlMaster auto
-    ControlPath ~/.ssh/agent/%r@%h:%p
-    ControlPersist 30m
-    ServerAliveInterval 20
-    ServerAliveCountMax 6
-    TCPKeepAlive yes
-```
-
-Meaning:
-
-- `Host walnutpi` is the stable body name used by host Codex and the user.
-- `root@192.168.1.30` is the board body on the LAN.
-- `IdentityFile ~/.ssh/id_ed25519` is the private key path.
-- `ControlMaster` and `ControlPersist` keep repeated SSH rituals fast.
-- `ServerAliveInterval` and `ServerAliveCountMax` keep long Bridge or repair turns from dying too eagerly.
+## Bridge
 
 `pocket-bridge` does one full living turn:
 
 1. reads Pocket Soul state, pulse, body, quest, memories, and relics
 2. asks Hermes for the inner voice
-3. asks the persistent Codex SDK thread for one concrete tool-arm action
-4. asks the cloud Pocket Soul voice to speak outside
-5. writes a bridge log and leaves a bridge relic
+3. asks the cloud Pocket Soul voice to speak outside
+4. writes a bridge log and leaves a bridge relic
 
-This is the default reusable way for host Codex and board Hermes to coordinate.
+This is the default reusable way for the room to make one complete shared turn.
 
 The same Bridge is exposed in the web cockpit as the shared wish form. The browser POST runs through the async web action path, updates the thinking phase while it waits, then shows the result; `/api/bridge` returns the latest completed Bridge text.
 
-`Bridge Flash` is the fast version in the web cockpit and the detailed tool grid. It does not call Codex or the cloud model; it records an immediate body echo, updates heading/next action, refreshes live vitals without a full page reload, and leaves a `flash` relic.
+`Bridge Flash` is the fast version in the web cockpit and the detailed tool grid. It does not call the cloud model; it records an immediate body echo, updates heading/next action, refreshes live vitals without a full page reload, and leaves a `flash` relic.
 
 ## Hermes
 
@@ -297,35 +262,13 @@ Hermes persona lives at:
 /root/.hermes/SOUL.md
 ```
 
-## Codex Tool Arm
-
-Codex is intentionally fully open on this personal board:
-
-```bash
-codex-thread "inspect this directory"
-codex-thread --json "report thread id and final response"
-cat state/codex-thread.json
-# one-shot rescue path:
-codex-open "inspect this directory"
-```
-
-`codex-thread` uses the official SDK route and persists a thread id. It is the default for Pocket Soul `TERMINAL` mode and web-room Codex requests.
-
-`codex-open` is the rescue route. The wrapper adds:
-
-```bash
---skip-git-repo-check --dangerously-bypass-approvals-and-sandbox
-```
-
-Codex is a tool arm, not the identity of the system.
-
 ## Research Radar
 
 ```bash
 ./scripts/research-radar.sh
 ```
 
-Host-side DeerFlow/opencli can do broader research when browser-backed sources are needed.
+DeerFlow/opencli can do broader research when browser-backed sources are needed.
 
 ## Network Recovery
 
@@ -336,16 +279,6 @@ Host-side DeerFlow/opencli can do broader research when browser-backed sources a
 This only installs Clash if a GitHub connectivity check fails.
 
 Do not paste the subscription token into logs or docs. The script already contains the local recovery configuration.
-
-## Codex SDK Thread
-
-```bash
-codex-thread --new "start long term collaboration"
-codex-thread "continue from the same thread"
-cat state/codex-thread.json
-```
-
-The SDK thread is the default Codex tool arm. It is better than repeated one-shot calls because it preserves thread context.
 
 ## Smoke Check
 
@@ -368,7 +301,6 @@ curl -sS http://127.0.0.1:8787/api/bottle | head
 curl -sS http://127.0.0.1:8787/api/bridge | head
 curl -sS http://127.0.0.1:8787/api/bridge-flash | head
 pocket-bridge "smoke check: one concise living turn" | head -80
-codex-thread "Answer one sentence: are you continuing the board thread?"
 ```
 
 Expected:
@@ -386,5 +318,4 @@ Expected:
 - Nightly endpoint returns markdown
 - Postcard endpoint returns text
 - Bottle endpoint returns text
-- Bridge prints Body, Hermes, Codex, and Pocket Soul sections
-- `codex-thread` prints a `thread:` line and a short answer
+- Bridge prints Body, Hermes, and Pocket Soul sections

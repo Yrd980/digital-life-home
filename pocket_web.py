@@ -313,7 +313,7 @@ def status_word(state: pocket_soul.SoulState) -> str:
         return "睡着"
     if "dream" in text or "梦" in text:
         return "做梦"
-    if "maintenance" in text or "维护" in text or "codex" in text:
+    if "maintenance" in text or "维护" in text:
         return "维护中"
     if state.energy < 30:
         return "发呆"
@@ -447,14 +447,14 @@ def relic_action(index: int, action: str) -> str:
 SCRIPT = """
 <script>
 const PHASES = {
-  '/ask': ['opening inner channel', 'listening to Hermes or tool arm', 'writing memory trace'],
-  '/bridge': ['scanning body', 'asking Hermes', 'calling Codex tool arm', 'shaping outside voice'],
+  '/ask': ['opening inner channel', 'listening to Hermes', 'writing memory trace'],
+  '/bridge': ['scanning body', 'asking Hermes', 'shaping outside voice'],
   '/nightly': ['reading today logs', 'folding relics', 'writing nightly'],
   '/postcard': ['reading heading', 'drawing constellation', 'writing postcard'],
   '/bottle': ['sealing message', 'placing bottle in state', 'refreshing shelf'],
   '/doorbell': ['opening door', 'checking pulse', 'leaving visit relic'],
   '/ritual': ['choosing ritual', 'asking imagination', 'saving trace'],
-  '/toy': ['checking toy bay', 'asking Codex tool arm', 'saving toy trace'],
+  '/toy': ['checking toy bay', 'saving toy trace'],
   '/quest': ['touching quest', 'updating state', 'saving relic'],
   '/heading': ['reading heartbeat', 'choosing heading', 'saving course'],
   '/remember': ['holding memory', 'writing state', 'lighting relic']
@@ -596,7 +596,7 @@ def room_page(result: str = "") -> bytes:
     <form class='talk-row' method='post' action='/ask' data-action='async'>
       <input name='prompt' placeholder='在门口留一句话...'>
       <button name='mode' value='council'>轻轻说</button>
-      <button class='soft-button' name='mode' value='codex'>工具手臂</button>
+      <button class='soft-button' name='mode' value='hermes'>Hermes</button>
     </form>
     <form class='talk-row' method='post' action='/bridge-flash' data-action='flash'>
       <input name='wish' placeholder='给房间一个小触碰...'>
@@ -620,8 +620,8 @@ def body_page() -> bytes:
     <section class='page-card'><span class='label'>体温</span><h2>{esc(words['temperature'])}</h2><p class='small'>{esc(words['raw_temp'])}</p></section>
     <section class='page-card'><span class='label'>心跳</span><h2>正常</h2><p class='small'>load {esc(words['load'])}</p></section>
     <section class='page-card'><span class='label'>呼吸</span><h2>{esc(words['window'])}</h2><p class='small'>{esc(words['net'])}</p></section>
-    <section class='page-card'><span class='label'>神经线</span><h2>{esc(words['nerve'])}</h2><p class='small'>SSH walnutpi</p></section>
-    <section class='page-card'><span class='label'>工具手臂</span><h2>Codex 待命</h2><p class='small'>persistent thread when called</p></section>
+    <section class='page-card'><span class='label'>神经线</span><h2>{esc(words['nerve'])}</h2><p class='small'>local room link</p></section>
+    <section class='page-card'><span class='label'>内在声音</span><h2>Hermes 可听见</h2><p class='small'>inner voice when called</p></section>
     <section class='page-card'><span class='label'>梦境云层</span><h2>可用</h2><p class='small'>Hermes / Soul voice</p></section>
   </div>
   <details class='page-card' style='margin-top:12px'><summary>高级信息</summary><pre>{esc(pocket_soul.body_text())}</pre></details>
@@ -808,8 +808,6 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         state = pocket_soul.SoulState.load()
         if mode == "hermes":
             result = pocket_soul.run_hermes(prompt)
-        elif mode == "codex":
-            result = pocket_soul.run_codex(prompt)
         elif mode == "soul":
             result = pocket_soul.call_model(prompt)
         else:
@@ -919,7 +917,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         result = state.last_reply
     elif path == "/toy":
         toy = data.get("toy", [""])[0]
-        result = pocket_soul.run_codex(f"Use the local tool arm only to launch or explain this Pocket Soul toy if appropriate: {toy}. Keep it concise.")
+        result = f"Toy room touched: {toy or 'random toy'}"
         state = pocket_soul.SoulState.load()
         if state.quest_name == "Toy Ritual":
             result += "\n" + state.complete_quest("web toy button")

@@ -9,7 +9,6 @@ The MVP is deliberately small: a 480x320 command-line display that proves Hermes
 - **Hermes** is the digital life: inner voice, continuity, reflection, rituals.
 - **Pocket Soul** is the small body: screen, keyboard, state, logs, toys.
 - **The board UI** stays light: one Hermes console, a few slash commands, no heavy agent loop.
-- **Codex** is host-side only: your computer SSHs in to edit, deploy, and repair. It is not a device feature.
 - **Terminal toys** are tiny play moments, not a full mode system.
 
 ## Main Entrances
@@ -27,7 +26,7 @@ pocket-pulse                # quick living glance
 Stay with the room:
 
 ```bash
-pocket-soul                 # TUI face on SSH, serial, or tty
+pocket-soul                 # TUI face on the small screen or terminal
 pocket-soul-card            # print the current Soul Card
 pocket-body                 # print physical body scan
 pocket-relics               # print the relic shelf
@@ -55,36 +54,17 @@ pocket-soul-demo            # smoke demo
 Web room:
 
 ```text
+http://127.0.0.1:8787
 http://192.168.1.30:8787
 ```
 
-Host SSH entrance:
-
-```sshconfig
-Host walnutpi
-    HostName 192.168.1.30
-    User root
-    IdentityFile ~/.ssh/id_ed25519
-    IdentitiesOnly yes
-    StrictHostKeyChecking accept-new
-    UserKnownHostsFile ~/.ssh/known_hosts
-    ControlMaster auto
-    ControlPath ~/.ssh/agent/%r@%h:%p
-    ControlPersist 30m
-    ServerAliveInterval 20
-    ServerAliveCountMax 6
-    TCPKeepAlive yes
-```
-
-Common host-to-board loop:
+Connection:
 
 ```bash
 ssh walnutpi
 ssh walnutpi 'cd /root/digital-life-home && pocket-pulse'
-ssh walnutpi 'cd /root/digital-life-home && systemctl restart pocket-soul'
+ssh walnutpi 'cd /root/digital-life-home && systemctl restart pocket-soul-web'
 ```
-
-In the product model, SSH is the host-side repair cord. Codex lives on the host computer and uses SSH when the board needs maintenance.
 
 ## MVP Screen
 
@@ -184,11 +164,11 @@ Runtime state is local and ignored by git:
 - `state/postcards/YYYYMMDD-HHMMSS.txt`: shareable postcards
 - `state/bottles/YYYYMMDD-HHMMSS.txt`: messages in bottles
 - Hermes notes and replies are written to `state/logs/YYYY-MM-DD.md`
-- `state/radar-*.md`: saved radar snapshots from local or host-side research runs
+- `state/radar-*.md`: saved radar snapshots from local research runs
 
 ## Research And Inspiration
 
-Host-side opencli radar snapshot:
+OpenCLI radar snapshot:
 
 ```bash
 ./scripts/opencli-radar.sh "AI companion cyberdeck"
@@ -200,7 +180,7 @@ Board-local lightweight radar summary:
 ./scripts/research-radar.sh
 ```
 
-Use DeerFlow/opencli from the host for broader research, then turn findings into a short `/ask ...` prompt or a small host-side patch.
+Use DeerFlow/opencli when imagination gets thin, then turn findings into a short `/ask ...` prompt or a small ritual.
 
 ## Network Recovery
 
@@ -214,7 +194,7 @@ That script checks GitHub first. Only if the check fails does it install Clash f
 
 ## Auth
 
-Pocket Soul reads `/root/.codex/auth.json` for `OPENAI_API_KEY` and defaults to `https://rehdasu.cn`.
+Pocket Soul reads `/root/.openai/auth.json` for `OPENAI_API_KEY` and defaults to `https://rehdasu.cn`.
 
 Environment overrides:
 
@@ -231,7 +211,7 @@ pocket_soul.py                    curses TUI body
 pocket_web.py                     local web room
 scripts/run.sh                    run TUI
 scripts/hermes.sh                 pure Hermes route
-scripts/summon.sh                 host-side experimental council
+scripts/summon.sh                 experimental council
 scripts/wake.sh                   wake ritual
 scripts/soul-card.sh              print portable Soul Card
 scripts/relics.sh                 print relic shelf
@@ -246,18 +226,10 @@ scripts/pick-bottle.sh            pick a random bottle
 scripts/bridge.sh                 body + Hermes bridge ritual
 scripts/web.sh                    run web room
 scripts/heartbeat.sh              self-evolution tick
-scripts/opencli-radar.sh          host-side broader radar snapshot
+scripts/opencli-radar.sh          broader radar snapshot
 scripts/ensure-network.sh         proxy recovery only when needed
 scripts/toys.sh                   list/launch terminal toys
-scripts/codex-thread.mjs           host-side repair experiment, not device UI
-scripts/codex-thread.sh            host-side wrapper
-scripts/codex-open.sh              host-side one-shot rescue
 scripts/install-*.sh              install symlinks and services
 docs/                             design, operations, research, web, evolution notes
 state/                            runtime memory and logs, ignored by git
 ```
-
-
-## Host-Side Repair
-
-Codex is not part of the on-device UI. Use Codex from the host computer, then SSH into `walnutpi` to patch, deploy, and restart services.

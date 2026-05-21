@@ -174,7 +174,7 @@ Shape after phases 1-3:
 Desired import split:
 - from soul_state import SoulState, STATE_DIR, LOG_DIR
 - from body import body_scan, body_text, body_whisper
-- from pocket_soul import run_hermes, run_codex, call_model, council_reply, bridge_turn
+- from pocket_soul import run_hermes, call_model, council_reply, bridge_turn
 
 Reason:
 - web should depend on explicit domains, not a monolith
@@ -189,7 +189,7 @@ Verification:
 ## Phase 5: leave entrypoints as narrative shells
 
 Desired end state:
-- pocket_soul.py = TUI shell + model/tool arm + top-level orchestration
+- pocket_soul.py = TUI shell + model calls + top-level orchestration
 - pocket_web.py = HTTP shell + page rendering + action routing
 - soul_state.py = persistent room memory and mutation core
 - body.py = physical body sensing

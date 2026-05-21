@@ -180,7 +180,7 @@ Design rules:
 
 First-screen exposure:
 - only one Deep Turn entry should be prominent at a time
-- Bridge is the default Deep Turn because it unifies body, Hermes, Soul, and tool arm
+- Bridge is the default Deep Turn because it unifies body, Hermes, and Soul
 
 Suggested copy style:
 - bridge

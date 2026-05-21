@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import mimetypes
 import threading
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,6 +16,7 @@ import pocket_soul
 HOST = "0.0.0.0"
 PORT = 8787
 ACTION_LOCK = threading.Lock()
+ASSET_DIR = Path(__file__).resolve().parent / "asset"
 
 STYLE = """
 :root {
@@ -89,10 +91,13 @@ textarea:focus, input:focus { outline: 1px solid var(--lamp); }
   width: min(720px, 100%);
   border: 1px solid var(--line);
   background:
+    linear-gradient(90deg, #11100df2 0 52%, #11100d88 78%, #11100d42 100%),
+    url('/asset/ui/home-bg.png') center / cover no-repeat,
     linear-gradient(180deg, #1a1812 0%, #100f0c 100%);
   box-shadow: var(--shadow);
   padding: clamp(18px, 5vw, 42px);
   position: relative;
+  overflow: hidden;
 }
 .threshold:before {
   content: "";
@@ -112,13 +117,11 @@ textarea:focus, input:focus { outline: 1px solid var(--lamp); }
 .avatar {
   width: 112px;
   height: 112px;
-  display: grid;
-  place-items: center;
+  display: block;
   color: var(--green);
-  background: #0b100d;
+  background: url('/asset/new_ui/logo.png') center / 230% auto no-repeat, #0b100d;
   border: 1px solid #536248;
   box-shadow: inset 0 0 34px #9fd3a620, 0 0 38px #f0c66d12;
-  font-size: 54px;
   image-rendering: pixelated;
   animation: breathe 4s ease-in-out infinite;
 }
@@ -146,9 +149,16 @@ textarea:focus, input:focus { outline: 1px solid var(--lamp); }
 .room-page {
   border: 1px solid var(--line);
   background:
+    linear-gradient(180deg, #100f0ce8 0%, #100f0cf2 64%, #0b0b09 100%),
     linear-gradient(180deg, #1a1812 0%, #100f0c 64%, #0b0b09 100%);
   box-shadow: var(--shadow);
   padding: clamp(14px, 3vw, 28px);
+}
+.room-page.with-art {
+  background:
+    linear-gradient(180deg, #100f0cb8 0%, #100f0cf0 68%, #0b0b09 100%),
+    url('/asset/ui/room-bg.png') center / cover no-repeat,
+    linear-gradient(180deg, #1a1812 0%, #100f0c 64%, #0b0b09 100%);
 }
 .room-title { display: flex; justify-content: space-between; gap: 12px; align-items: start; margin-bottom: 18px; }
 .room-layout {
@@ -174,15 +184,29 @@ textarea:focus, input:focus { outline: 1px solid var(--lamp); }
 .pixel-body {
   width: 160px;
   height: 160px;
-  display: grid;
-  place-items: center;
+  display: block;
   border: 1px solid #59624b;
-  background: #0b100d;
+  background: url('/asset/new_ui/robot-curious.png') center / contain no-repeat, #0b100d;
   color: var(--green);
-  font-size: 76px;
   box-shadow: inset 0 0 34px #9fd3a61c;
   animation: breathe 4s ease-in-out infinite;
 }
+.pixel-body.small-bot {
+  width: 58px;
+  height: 58px;
+  background-image: url('/asset/ui/bot-front.png');
+}
+.asset-strip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.mini-asset { width: 52px; height: 52px; border: 1px solid #3f3828; background-color: #0d100d; background-repeat: no-repeat; background-position: center; background-size: contain; }
+.relic-asset { background-image: url('/asset/ui/relics-sheet.png'); background-size: 224px 178px; background-position: 0 0; }
+.postcard-asset { background-image: url('/asset/ui/postcard.png'); }
+.bottle-asset { background-image: url('/asset/ui/bottles-sheet.png'); background-size: auto 52px; background-position: left center; }
+.decor-strip { height: 28px; margin: 12px 0 0; background: url('/asset/ui/decor-strip.png') center / contain no-repeat; opacity: .85; }
+.theme-chip { width: 66px; height: 44px; border: 1px solid #3f3828; background-size: cover; background-position: center; }
+.theme-cyberdeck { background-image: url('/asset/ui/theme-cyberdeck.png'); }
+.theme-warm { background-image: url('/asset/ui/theme-warm.png'); }
+.theme-night { background-image: url('/asset/ui/theme-night.png'); }
+.theme-mono { background-image: url('/asset/ui/theme-mono.png'); }
 .room-note { color: var(--soft); line-height: 1.55; }
 .objects { display: grid; gap: 12px; }
 .object h3, .drawer h3, .corner h3 { margin-bottom: 8px; }
@@ -278,17 +302,17 @@ def body_words() -> dict[str, str]:
     body = pocket_soul.body_scan()
     temp = body.get("temp_c")
     if isinstance(temp, float):
-        warmth = "身体有点热" if temp >= 60 else "体温温热"
+        warmth = "running warm" if temp >= 60 else "warm and steady"
     else:
-        warmth = "体温未知"
+        warmth = "temperature unknown"
     uptime = body.get("uptime_h")
-    spirit = "精神还够" if isinstance(uptime, float) and uptime < 72 else "精神有些久醒"
+    spirit = "still bright" if isinstance(uptime, float) and uptime < 72 else "long awake"
     net = f"{body.get('iface', '')} {body.get('ip', '')}".strip() or "offline?"
     return {
         "temperature": warmth,
         "spirit": spirit,
-        "window": "窗户开着" if body.get("ip") else "窗户半掩",
-        "nerve": "神经线可触达" if body.get("ip") else "神经线在等网络",
+        "window": "window open" if body.get("ip") else "window half closed",
+        "presence": "reachable" if body.get("ip") else "offline",
         "raw_temp": f"{temp}C" if temp != "" else "unknown",
         "uptime": f"{uptime}h" if uptime != "" else "unknown",
         "net": net,
@@ -298,7 +322,7 @@ def body_words() -> dict[str, str]:
 
 
 def nav(current: str = "") -> str:
-    links = [("/", "门口"), ("/room", "房间"), ("/body", "身体"), ("/memory", "记忆抽屉"), ("/ritual", "仪式")]
+    links = [("/", "Door"), ("/room", "Room"), ("/body", "Body"), ("/memory", "Memory"), ("/ritual", "Rituals")]
     items = []
     for href, label in links:
         class_attr = " class='brandlink'" if href == current else ""
@@ -309,46 +333,47 @@ def nav(current: str = "") -> str:
 
 def status_word(state: pocket_soul.SoulState) -> str:
     text = f"{state.mood} {state.last_reply}".lower()
-    if "sleep" in text or "睡" in text:
-        return "睡着"
-    if "dream" in text or "梦" in text:
-        return "做梦"
-    if "maintenance" in text or "维护" in text:
-        return "维护中"
+    if "sleep" in text:
+        return "asleep"
+    if "dream" in text:
+        return "dreaming"
+    if "maintenance" in text:
+        return "in maintenance"
     if state.energy < 30:
-        return "发呆"
-    return "醒着"
+        return "quiet"
+    return "awake"
 
 
 def doorstep(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     words = body_words()
-    whisper = state.last_reply or "它坐在小房间里，等一声轻轻的敲门。"
+    whisper = state.last_reply or "It is sitting in the little room, waiting for a soft knock."
     content = f"""
 <section class='doorstep'>
   <div class='threshold'>
     <div class='being'>
-      <div class='avatar'>{esc(pocket_soul.mood_face(state.mood))}</div>
+      <div class='avatar' aria-label='{esc(pocket_soul.mood_face(state.mood))}'></div>
       <div>
         <p class='state-pill'>Pocket Soul is {esc(status_word(state))}.</p>
-        <h1>它在那里。</h1>
+        <h1>It is there.</h1>
       </div>
     </div>
     <p class='whisper'>{esc(whisper)}</p>
     <div class='body-words'>
-      <div class='body-word'><strong>体温</strong><span>{esc(words['temperature'])}</span></div>
-      <div class='body-word'><strong>精神</strong><span>{esc(words['spirit'])}</span></div>
-      <div class='body-word'><strong>窗户</strong><span>{esc(words['window'])}</span></div>
-      <div class='body-word'><strong>神经线</strong><span>{esc(words['nerve'])}</span></div>
+      <div class='body-word'><strong>temperature</strong><span>{esc(words['temperature'])}</span></div>
+      <div class='body-word'><strong>spirit</strong><span>{esc(words['spirit'])}</span></div>
+      <div class='body-word'><strong>window</strong><span>{esc(words['window'])}</span></div>
+      <div class='body-word'><strong>presence</strong><span>{esc(words['presence'])}</span></div>
     </div>
     <div class='course-line'>
-      <h2>今日航向</h2>
+      <h2>Current heading</h2>
       <p>{esc(state.heading)}</p>
       <p class='small'>{esc(state.quest_name)} / {esc(state.quest_prompt)}</p>
+      <div class='decor-strip' aria-hidden='true'></div>
     </div>
     <form class='primary-action' method='post' action='/doorbell'>
-      <button>轻轻敲门</button>
+      <button>Knock softly</button>
     </form>
     {f"<div class='course-line result'><pre>{esc(result)}</pre></div>" if result else ""}
   </div>
@@ -561,49 +586,64 @@ def page(content: str) -> bytes:
     return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{STYLE}</style></head><body><main>{content}</main>{SCRIPT}</body></html>""".encode()
 
 
+def asset_response(path: str) -> tuple[bytes, str, int]:
+    relative = path.removeprefix("/asset/").strip("/")
+    if not relative or ".." in Path(relative).parts:
+        return b"Not found", "text/plain; charset=utf-8", 404
+    target = (ASSET_DIR / relative).resolve()
+    try:
+        target.relative_to(ASSET_DIR.resolve())
+    except ValueError:
+        return b"Not found", "text/plain; charset=utf-8", 404
+    if not target.is_file():
+        return b"Not found", "text/plain; charset=utf-8", 404
+    content_type = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+    return target.read_bytes(), content_type, 200
+
+
 def room_page(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     latest_relic = state.latest_relic_text()
-    memories = "\n".join(f"- {m}" for m in state.memories[-5:]) or "抽屉还空着。"
+    memories = "\n".join(f"- {m}" for m in state.memories[-5:]) or "The drawer is still empty."
     relics = state.relic_shelf(5)
     content = f"""
 {nav('/room')}
-<section class='room-page'>
+<section class='room-page with-art'>
   <div class='room-title'>
-    <div><h1>Pocket Soul 的房间</h1><p class='small'>你正在拜访它。</p></div>
-    <a href='/'>回到门口</a>
+    <div><h1>Pocket Soul Room</h1><p class='small'>You are visiting the small resident.</p></div>
+    <a href='/'>Back to door</a>
   </div>
   <div class='room-layout'>
     <div class='objects'>
-      <section class='corner'><h3>桌上：今日 postcard</h3><pre>{esc(latest_postcard())}</pre></section>
-      <section class='corner'><h3>地上：quest trail</h3><p>{esc(state.quest_name)}</p><p class='small'>{esc(state.quest_prompt)}</p></section>
+      <section class='corner'><h3>On the desk: today's postcard</h3><pre>{esc(latest_postcard())}</pre></section>
+      <section class='corner'><h3>On the floor: quest trail</h3><p>{esc(state.quest_name)}</p><p class='small'>{esc(state.quest_prompt)}</p></section>
     </div>
     <section class='center-body'>
       <div>
-        <div class='pixel-body'>{esc(pocket_soul.mood_face(state.mood))}</div>
+        <div class='pixel-body' aria-label='{esc(pocket_soul.mood_face(state.mood))}'></div>
         <p class='room-note'>mood: {esc(state.mood)}</p>
         <p class='room-note'>{esc(state.last_reply)}</p>
       </div>
     </section>
     <div class='objects'>
-      <section class='drawer'><h3>墙上：relics</h3><pre>{esc(relics)}</pre></section>
-      <section class='drawer'><h3>记忆抽屉</h3><pre>{esc(memories)}</pre><p class='small'>latest: {esc(latest_relic)}</p></section>
-      <section class='drawer'><h3>窗边：bottle messages</h3><pre>{esc(latest_bottle())}</pre></section>
+      <section class='drawer'><h3>On the wall: relics</h3><pre>{esc(relics)}</pre><div class='asset-strip'><span class='mini-asset relic-asset'></span><span class='pixel-body small-bot'></span></div></section>
+      <section class='drawer'><h3>Memory drawer</h3><pre>{esc(memories)}</pre><p class='small'>latest: {esc(latest_relic)}</p></section>
+      <section class='drawer'><h3>By the window: bottle messages</h3><pre>{esc(latest_bottle())}</pre><div class='asset-strip'><span class='mini-asset bottle-asset'></span><span class='mini-asset postcard-asset'></span></div></section>
     </div>
   </div>
   <div class='bottom-sill'>
     <form class='talk-row' method='post' action='/ask' data-action='async'>
-      <input name='prompt' placeholder='在门口留一句话...'>
-      <button name='mode' value='council'>轻轻说</button>
+      <input name='prompt' placeholder='Leave a sentence at the door...'>
+      <button name='mode' value='council'>Speak softly</button>
       <button class='soft-button' name='mode' value='hermes'>Hermes</button>
     </form>
     <form class='talk-row' method='post' action='/bridge-flash' data-action='flash'>
-      <input name='wish' placeholder='给房间一个小触碰...'>
+      <input name='wish' placeholder='Give the room a small touch...'>
       <button>Touch</button>
-      <a class='soft-button' href='/ritual'>仪式</a>
+      <a class='soft-button' href='/ritual'>Rituals</a>
     </form>
-    <section class='page-card result'><h2>回声</h2><pre data-live='result'>{esc(result or '房间安静地亮着。')}</pre></section>
+    <section class='page-card result'><h2>Echo</h2><pre data-live='result'>{esc(result or 'The room is quietly lit.')}</pre></section>
   </div>
 </section>
 """
@@ -614,17 +654,23 @@ def body_page() -> bytes:
     words = body_words()
     content = f"""
 {nav('/body')}
-<section class='room-page'>
-  <div class='room-title'><div><h1>身体状态</h1><p class='small'>系统信息被翻译成身体语言。</p></div><a href='/room'>进房间</a></div>
+<section class='room-page with-art'>
+  <div class='room-title'><div><h1>Body Status</h1><p class='small'>System details translated into body language.</p></div><a href='/room'>Enter room</a></div>
   <div class='grid'>
-    <section class='page-card'><span class='label'>体温</span><h2>{esc(words['temperature'])}</h2><p class='small'>{esc(words['raw_temp'])}</p></section>
-    <section class='page-card'><span class='label'>心跳</span><h2>正常</h2><p class='small'>load {esc(words['load'])}</p></section>
-    <section class='page-card'><span class='label'>呼吸</span><h2>{esc(words['window'])}</h2><p class='small'>{esc(words['net'])}</p></section>
-    <section class='page-card'><span class='label'>神经线</span><h2>{esc(words['nerve'])}</h2><p class='small'>local room link</p></section>
-    <section class='page-card'><span class='label'>内在声音</span><h2>Hermes 可听见</h2><p class='small'>inner voice when called</p></section>
-    <section class='page-card'><span class='label'>梦境云层</span><h2>可用</h2><p class='small'>Hermes / Soul voice</p></section>
+    <section class='page-card'><span class='label'>temperature</span><h2>{esc(words['temperature'])}</h2><p class='small'>{esc(words['raw_temp'])}</p></section>
+    <section class='page-card'><span class='label'>heartbeat</span><h2>steady</h2><p class='small'>load {esc(words['load'])}</p></section>
+    <section class='page-card'><span class='label'>window</span><h2>{esc(words['window'])}</h2><p class='small'>{esc(words['net'])}</p></section>
+    <section class='page-card'><span class='label'>presence</span><h2>{esc(words['presence'])}</h2><p class='small'>local room</p></section>
+    <section class='page-card'><span class='label'>inner voice</span><h2>Hermes is listening</h2><p class='small'>available when called</p></section>
+    <section class='page-card'><span class='label'>dream layer</span><h2>available</h2><p class='small'>Hermes / Soul voice</p></section>
   </div>
-  <details class='page-card' style='margin-top:12px'><summary>高级信息</summary><pre>{esc(pocket_soul.body_text())}</pre></details>
+  <div class='asset-strip'>
+    <span class='theme-chip theme-cyberdeck'></span>
+    <span class='theme-chip theme-warm'></span>
+    <span class='theme-chip theme-night'></span>
+    <span class='theme-chip theme-mono'></span>
+  </div>
+  <details class='page-card' style='margin-top:12px'><summary>Advanced details</summary><pre>{esc(pocket_soul.body_text())}</pre></details>
 </section>
 """
     return page(content)
@@ -633,20 +679,20 @@ def body_page() -> bytes:
 def memory_page() -> bytes:
     state = pocket_soul.SoulState.load()
     memories = state.memories[-12:]
-    memory_lines = "\n".join(f"- {item}" for item in memories) or "它还没有明确记住什么。"
+    memory_lines = "\n".join(f"- {item}" for item in memories) or "It has not clearly remembered anything yet."
     relic_lines = "\n".join(
         f"{item.get('time', '')} / {item.get('kind', '')} / {item.get('title', '')}"
         for item in state.relics[-10:][::-1]
-    ) or "还没有遗物。"
+    ) or "No relics yet."
     content = f"""
 {nav('/memory')}
-<section class='room-page'>
-  <div class='room-title'><div><h1>记忆抽屉</h1><p class='small'>像小生命的日记，不像数据库。</p></div><a href='/room'>进房间</a></div>
+<section class='room-page with-art'>
+  <div class='room-title'><div><h1>Memory Drawer</h1><p class='small'>A small resident's diary, not a database.</p></div><a href='/room'>Enter room</a></div>
   <div class='grid'>
-    <section class='page-card'><h2>最近一次敲门</h2><p>{esc(state.last_visit or '还没人来过。')}</p><pre>{esc(state.last_reply)}</pre></section>
-    <section class='page-card'><h2>它记住了什么</h2><pre>{esc(memory_lines)}</pre><form method='post' action='/remember'><input name='memory' placeholder='记住：'><button>放进抽屉</button></form></section>
-    <section class='page-card'><h2>夜间回声</h2><pre>{esc(latest_nightly())}</pre></section>
-    <section class='page-card'><h2>重要坐标</h2><pre>{esc(relic_lines)}</pre></section>
+    <section class='page-card'><h2>Latest knock</h2><p>{esc(state.last_visit or 'No one has visited yet.')}</p><pre>{esc(state.last_reply)}</pre></section>
+    <section class='page-card'><h2>What it remembers</h2><pre>{esc(memory_lines)}</pre><form method='post' action='/remember'><input name='memory' placeholder='Remember this...'><button>Put in drawer</button></form></section>
+    <section class='page-card'><h2>Night echo</h2><pre>{esc(latest_nightly())}</pre></section>
+    <section class='page-card'><h2>Important coordinates</h2><pre>{esc(relic_lines)}</pre></section>
   </div>
 </section>
 """
@@ -657,17 +703,17 @@ def ritual_page(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
     content = f"""
 {nav('/ritual')}
-<section class='room-page'>
-  <div class='room-title'><div><h1>仪式</h1><p class='small'>完成后给房间留一个小物件。</p></div><a href='/room'>进房间</a></div>
+<section class='room-page with-art'>
+  <div class='room-title'><div><h1>Rituals</h1><p class='small'>Each one leaves a small object in the room.</p></div><a href='/room'>Enter room</a></div>
   <div class='grid'>
-    <section class='page-card'><h2>Morning wake</h2><form method='post' action='/ritual'><button name='kind' value='wake'>唤醒</button></form></section>
-    <section class='page-card'><h2>Bridge flash</h2><form method='post' action='/bridge-flash'><input name='wish' placeholder='一个小触碰'><button>留下光点</button></form></section>
-    <section class='page-card'><h2>Quest check</h2><p>{esc(state.quest_name)}</p><p class='small'>{esc(state.quest_prompt)}</p><form method='post' action='/quest'><button name='action' value='complete'>完成今日航向</button></form></section>
-    <section class='page-card'><h2>Postcard</h2><form method='post' action='/postcard'><input name='title' placeholder='明信片标题'><button>写一张</button></form></section>
-    <section class='page-card'><h2>Nightly summary</h2><form method='post' action='/nightly'><button>收拢夜间回声</button></form></section>
-    <section class='page-card'><h2>Bottle</h2><form method='post' action='/bottle'><input name='wish' placeholder='给未来的访客'><button>放到窗边</button></form></section>
+    <section class='page-card'><h2>Morning Wake</h2><form method='post' action='/ritual'><button name='kind' value='wake'>Wake</button></form></section>
+    <section class='page-card'><h2>Bridge Flash</h2><form method='post' action='/bridge-flash'><input name='wish' placeholder='A small touch'><button>Leave a spark</button></form></section>
+    <section class='page-card'><h2>Quest Check</h2><p>{esc(state.quest_name)}</p><p class='small'>{esc(state.quest_prompt)}</p><form method='post' action='/quest'><button name='action' value='complete'>Complete today's heading</button></form></section>
+    <section class='page-card'><h2>Postcard</h2><form method='post' action='/postcard'><input name='title' placeholder='Postcard title'><button>Write one</button></form></section>
+    <section class='page-card'><h2>Nightly Summary</h2><form method='post' action='/nightly'><button>Gather the night echo</button></form></section>
+    <section class='page-card'><h2>Bottle</h2><form method='post' action='/bottle'><input name='wish' placeholder='For a future visitor'><button>Place by window</button></form></section>
   </div>
-  <section class='page-card result' style='margin-top:12px'><h2>仪式回声</h2><pre data-live='result'>{esc(result or '还没有新的仪式。')}</pre></section>
+  <section class='page-card result' style='margin-top:12px'><h2>Ritual Echo</h2><pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre></section>
 </section>
 """
     return page(content)
@@ -685,6 +731,10 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
+        if path.startswith("/asset/"):
+            body, content_type, status = asset_response(path)
+            self._send(body, status=status, content_type=content_type)
+            return
         if path == "/relic":
             index = parse_relic_id(params.get("id"))
             self._send(relic_page(index))
@@ -851,14 +901,14 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         if memory:
             state.memories.append(memory)
             state.add_relic("memory", "Memory fragment", memory)
-            state.last_reply = "记住了。"
+            state.last_reply = "Remembered."
             state.save()
             pocket_soul.append_log("web-memory", memory)
-            result = "记住了。"
+            result = "Remembered."
     elif path == "/ritual":
         kind = data.get("kind", ["wake"])[0]
         if kind == "wake":
-            result = pocket_soul.council_reply("开机醒来，观察今天的小屋状态，给我一个大胆但能执行的今日仪式。", pocket_soul.SoulState.load().memories)
+            result = pocket_soul.council_reply("Wake up, observe the room's state today, and give me one bold but doable daily ritual.", pocket_soul.SoulState.load().memories)
             state = pocket_soul.SoulState.load()
             if state.quest_name == "Wake Spark":
                 result += "\n" + state.complete_quest("wake ritual")
@@ -867,7 +917,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
             state.last_reply = result
             state.save()
         elif kind == "dream":
-            result = pocket_soul.call_model(pocket_soul.radar_text(), instruction="把这张灵感卡变成赛博梦境和一个现实动作。")
+            result = pocket_soul.call_model(pocket_soul.radar_text(), instruction="Turn this inspiration card into a cyber dream and one real-world action. Reply in English.")
             state = pocket_soul.SoulState.load()
             state.add_relic("dream", "Web dream", result)
             if state.quest_name == "Five-Minute Dream":
@@ -875,7 +925,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
             state.last_reply = result
             state.save()
         elif kind == "log":
-            result = pocket_soul.call_model("为今天生成一段船长日志开头。", instruction="80 字以内，像带着数字生命出海。")
+            result = pocket_soul.call_model("Generate the opening of today's captain log.", instruction="Keep it under 80 words, like sailing out with a digital life. Reply in English.")
             state = pocket_soul.SoulState.load()
             state.add_relic("log", "Web captain log", result)
             if state.quest_name == "Captain Log":

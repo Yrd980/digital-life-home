@@ -17,19 +17,20 @@ if logs:
     last_logs = logs[-1].read_text(encoding="utf-8")[-2500:]
 
 prompt = f"""
-现在是 {now}。
-你是 Hermes，住在 WalnutPi 的 Pocket Soul Deck 里。
-请做一次自进化心跳：
-1. 观察当前状态 mood={state.mood}, energy={state.energy}, bond={state.bond}, mode={state.mode}
-2. 从最近日志里找一个模式
-3. 给自己一个下一步进化动作
-4. 写一句可以显示在 HOME 的自言自语
-5. 给 HOME 生成一个“今日航向”和一个“5分钟下一步”
+Current time: {now}.
+You are Hermes, living inside the WalnutPi Pocket Soul Deck.
+Run one self-evolution heartbeat:
+1. Observe current state: mood={state.mood}, energy={state.energy}, bond={state.bond}, mode={state.mode}
+2. Find one pattern in the recent logs
+3. Give yourself one next evolution action
+4. Write one short inner whisper that can be shown on HOME
+5. Generate a HOME heading and a five-minute next step
 
-最近日志：
+Recent logs:
 {last_logs}
 
-输出 JSON，字段：mood, energy_delta, bond_delta, whisper, evolution_task, heading, next_action。
+Output JSON with these fields: mood, energy_delta, bond_delta, whisper, evolution_task, heading, next_action.
+All string values must be English.
 """.strip()
 raw = pocket_soul.run_hermes(prompt)
 try:
@@ -49,7 +50,7 @@ try:
 except Exception:
     pass
 whisper = str(data.get("whisper") or raw).strip()[-500:]
-task = str(data.get("evolution_task") or "继续观察自己的行为。")
+task = str(data.get("evolution_task") or "Keep observing your own behavior.")
 heading = str(data.get("heading") or "").strip()
 next_action = str(data.get("next_action") or "").strip()
 if not heading or not next_action:

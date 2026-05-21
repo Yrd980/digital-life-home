@@ -835,32 +835,32 @@ def run_hermes(prompt: str) -> str:
 def council_reply(prompt: str, memories: list[str]) -> str:
     memory_text = "\n".join(memories[-8:])
     hermes_prompt = f"""
-你是住在 WalnutPi 里的 Hermes 内在意识。请先给 Pocket Soul 一个内心判断。
-本地记忆：
+You are Hermes, the inner consciousness living inside the WalnutPi Pocket Soul room. First give Pocket Soul an inner judgment.
+Local memories:
 {memory_text}
 
-用户输入：
+User input:
 {prompt}
 
-只输出 4 行以内，像内心独白，不要执行命令。
+Reply in English only. Output at most 4 lines, like an inner monologue. Do not execute commands.
 """.strip()
     inner = run_hermes(hermes_prompt)
     cloud_prompt = f"""
-Hermes 内在意识：
+Hermes inner voice:
 {inner}
 
-用户输入：
+User input:
 {prompt}
 
-请作为 Pocket Soul Deck 的外在声音回复。
-如果需要行动，给出一个清晰下一步；如果只是陪伴，就短而有存在感。
+Reply as the outside voice of Pocket Soul Deck.
+If action is needed, give one clear next step; if this is companionship, stay brief and present.
 """.strip()
-    final = call_model(cloud_prompt, instruction="融合 Hermes 的内在判断，输出 6 行以内。")
+    final = call_model(cloud_prompt, instruction="Blend Hermes's inner judgment into one outside-voice reply. Reply in English only, under 6 lines.")
     return f"Hermes:\n{inner}\n\nSoul:\n{final}"
 
 
 def bridge_turn(user_prompt: str = "") -> str:
-    user_prompt = user_prompt.strip() or "观察这个小屋现在的身体、记忆和航向，决定下一步怎么更像一个活着的数字生命。"
+    user_prompt = user_prompt.strip() or "Observe the room's current body, memory, and heading. Decide the next small step that makes it feel more alive."
     state = SoulState.load()
     state.ensure_daily_quest()
     pulse = state.pulse()
@@ -1254,8 +1254,8 @@ class DeckApp:
             return
         if text == "/quit":
             raise SystemExit
-        if text.startswith("/remember ") or text.startswith("记住："):
-            mem = text.split(" ", 1)[1] if text.startswith("/remember ") else text[3:].strip()
+        if text.startswith("/remember "):
+            mem = text.split(" ", 1)[1]
             self.state.last_reply = self.state.remember_memory(mem)
             self.draw()
             return

@@ -60,10 +60,13 @@ PAGES = [
 PAGE_BY_PATH = {page.path: page for page in PAGES}
 SHELL_PATHS = tuple(PAGE_BY_PATH)
 ASSETS = {
-    "logo": "/asset/opt/logo-small.webp",
+    "logo": "/asset/opt/pocket-logo-mark.webp",
     "home_bg": "/asset/opt/home-bg.webp",
     "room_bg": "/asset/opt/room-bg.webp",
     "relic_sprite": "/asset/opt/relic-icons-sprite.png",
+    "ritual_sprite": "/asset/opt/ritual-props-sprite.png",
+    "theme_sprite": "/asset/opt/theme-thumbs.webp",
+    "robot_neutral": "/asset/opt/robot-neutral.webp",
     "robot_blush": "/asset/opt/robot-blush.webp",
     "robot_curious": "/asset/opt/robot-curious.webp",
     "robot_happy": "/asset/opt/robot-happy.webp",
@@ -1086,13 +1089,28 @@ body.cockpit-page:after {
   height: 86px;
   border: 1px solid #2b4264;
   border-radius: 8px;
-  background-size: cover;
-  background-position: center;
+  background-image: url('__ASSET_THEME_SPRITE__');
+  background-size: 344px 86px;
+  background-repeat: no-repeat;
 }
-.theme-cyberdeck { background-image: url('/asset/ui/theme-cyberdeck.png'); }
-.theme-warm { background-image: url('/asset/ui/theme-warm.png'); }
-.theme-night { background-image: url('/asset/ui/theme-night.png'); }
-.theme-mono { background-image: url('/asset/ui/theme-mono.png'); }
+.theme-cyberdeck { background-position: 0 0; }
+.theme-warm { background-position: -86px 0; }
+.theme-night { background-position: -172px 0; }
+.theme-mono { background-position: -258px 0; }
+.ritual-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-block;
+  background-image: url('__ASSET_RITUAL_SPRITE__');
+  background-repeat: no-repeat;
+  background-size: 252px 84px;
+  filter: drop-shadow(0 0 12px #79ffd244);
+}
+.ritual-icon.wake { background-position: 0 0; }
+.ritual-icon.flash { background-position: -42px 0; }
+.ritual-icon.quest { background-position: -84px 0; }
+.ritual-icon.postcard { background-position: -126px 0; }
+.ritual-icon.bottle { background-position: -168px 0; }
 .codex-terminal {
   margin-top: 14px;
   min-height: 320px;
@@ -1561,7 +1579,9 @@ def robot_image(state: pocket_soul.SoulState) -> str:
         return asset("robot_blush")
     if "happy" in text or ":)" in state.mood:
         return asset("robot_happy")
-    return asset("robot_curious")
+    if state.mood in {"o_o", "*_*"}:
+        return asset("robot_curious")
+    return asset("robot_neutral")
 
 
 def room_voice(text: str) -> str:
@@ -2219,11 +2239,11 @@ def ritual_page(result: str = "", partial: bool = False) -> bytes:
       <div class='mini-header'><h2>Rituals</h2><span class='mini-sub'>{esc(state.quest_name)}</span></div>
       <p>{esc(state.quest_prompt)}</p>
       <div class='ritual-row'>
-        <form class='ritual-card' method='post' action='/ritual' data-action='async'><div class='big'>♡</div><h2>Wake</h2><button name='kind' value='wake'>Run</button></form>
-        <form class='ritual-card' method='post' action='/bridge-flash' data-action='flash'><div class='big'>✦</div><h2>Flash</h2><input name='wish' placeholder='A small touch'><button>Run</button></form>
-        <form class='ritual-card' method='post' action='/quest' data-action='async'><div class='big'>✓</div><h2>Quest</h2><button name='action' value='complete'>Complete</button></form>
-        <form class='ritual-card' method='post' action='/postcard' data-action='async'><div class='big'>✉</div><h2>Postcard</h2><input name='title' placeholder='Title'><button>Write</button></form>
-        <form class='ritual-card' method='post' action='/bottle' data-action='async'><div class='big'>⌁</div><h2>Bottle</h2><input name='wish' placeholder='Future visitor'><button>Place</button></form>
+        <form class='ritual-card' method='post' action='/ritual' data-action='async'><div class='big'><span class='ritual-icon wake'></span></div><h2>Wake</h2><button name='kind' value='wake'>Run</button></form>
+        <form class='ritual-card' method='post' action='/bridge-flash' data-action='flash'><div class='big'><span class='ritual-icon flash'></span></div><h2>Flash</h2><input name='wish' placeholder='A small touch'><button>Run</button></form>
+        <form class='ritual-card' method='post' action='/quest' data-action='async'><div class='big'><span class='ritual-icon quest'></span></div><h2>Quest</h2><button name='action' value='complete'>Complete</button></form>
+        <form class='ritual-card' method='post' action='/postcard' data-action='async'><div class='big'><span class='ritual-icon postcard'></span></div><h2>Postcard</h2><input name='title' placeholder='Title'><button>Write</button></form>
+        <form class='ritual-card' method='post' action='/bottle' data-action='async'><div class='big'><span class='ritual-icon bottle'></span></div><h2>Bottle</h2><input name='wish' placeholder='Future visitor'><button>Place</button></form>
       </div>
       <pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre>
     </section>

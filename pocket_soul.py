@@ -297,6 +297,7 @@ SLASH_COMMANDS = [
     "/badges",
     "/nudge",
     "/daily",
+    "/today",
 ]
 
 COMMAND_COMPLETION_HINTS = {
@@ -631,6 +632,16 @@ class SoulState:
         progress = max(0, current - self.daily_start)
         return min(progress, self.daily_target), self.daily_target
 
+    def daily_action_hint(self) -> tuple[str, str]:
+        self.ensure_daily_play()
+        if self.daily_key == "use" and not self.stash_items(1):
+            return "/hunt", "find one shelf object first"
+        if self.daily_key == "wheel" and self.spark < WHEEL_COST:
+            return "/hunt", f"gather {WHEEL_COST - self.spark} more spark for the wheel"
+        if self.daily_key == "craft" and self.spark < CRAFT_RECIPES[0][1]:
+            return "/hunt", f"gather {CRAFT_RECIPES[0][1] - self.spark} more spark for the craft bench"
+        return f"/{self.daily_key}", self.daily_prompt
+
     def daily_view(self) -> str:
         progress, target = self.daily_progress()
         status = "done" if self.daily_done else f"{progress}/{target}"
@@ -642,9 +653,64 @@ class SoulState:
         if self.daily_done:
             lines.append("claimed. come back tomorrow.")
         else:
-            lines.append(f"try: /{self.daily_key}")
+            command, hint = self.daily_action_hint()
+            lines.append(f"try: {command}")
+            if hint != self.daily_prompt:
+                lines.append(f"first: {hint}")
             lines.append("claim with /daily claim")
         return "\n".join(lines)
+
+    def today_turn(self) -> dict[str, object]:
+        self.ensure_daily_quest()
+        self.ensure_daily_play()
+        progress, target = self.daily_progress()
+        badges = self.badge_rows()
+        lit_badges = sum(1 for _name, _note, unlocked in badges if unlocked)
+        if self.daily_done and self.quest_done:
+            phase = "glowing"
+            command = "/postcard"
+            action = "write one postcard from today's trace"
+            reason = "both loops are complete; leave a portable souvenir"
+            reward = "tomorrow starts with a warmer room"
+        elif not self.daily_done:
+            command, action = self.daily_action_hint()
+            phase = "prepare" if command != f"/{self.daily_key}" else "play"
+            reason = "this prepares the toy loop" if phase == "prepare" else "this moves the toy loop and earns spark"
+            reward = f"+{self.daily_reward} spark, then /daily claim"
+        else:
+            phase = "bond"
+            command = "/quest"
+            action = self.quest_prompt
+            reason = "the toy loop is claimed; finish the room's invitation"
+            reward = self.quest_reward
+        light = min(100, 18 + self.energy // 3 + lit_badges * 6 + (12 if self.quest_done else 0) + (12 if self.daily_done else 0))
+        return {
+            "phase": phase,
+            "command": command,
+            "action": action,
+            "reason": reason,
+            "reward": reward,
+            "progress": progress,
+            "target": target,
+            "daily_done": self.daily_done,
+            "quest_done": self.quest_done,
+            "light": light,
+            "badges_lit": lit_badges,
+            "badges_total": len(badges),
+        }
+
+    def today_turn_text(self) -> str:
+        turn = self.today_turn()
+        progress = "done" if turn["daily_done"] else f"{turn['progress']}/{turn['target']}"
+        quest = "done" if turn["quest_done"] else "open"
+        return "\n".join([
+            "TODAY'S TURN",
+            f"phase: {turn['phase']} | room light {turn['light']}%",
+            f"do: {turn['command']} - {turn['action']}",
+            f"why: {turn['reason']}",
+            f"reward: {turn['reward']}",
+            f"daily {progress} | quest {quest} | badges {turn['badges_lit']}/{turn['badges_total']}",
+        ])
 
     def claim_daily_play(self, source: str = "tui") -> str:
         self.ensure_daily_play()
@@ -671,6 +737,21 @@ class SoulState:
         ])
         self.add_relic("quest", f"Daily {self.daily_name}", self.daily_prompt)
         append_log("daily", f"{source}\n{self.last_reply}")
+        return self.last_reply
+
+    def complete_today_turn(self, source: str = "tui") -> str:
+        turn = self.today_turn()
+        if not self.daily_done:
+            return self.claim_daily_play(source)
+        if not self.quest_done:
+            return self.complete_quest(source)
+        self.last_reply = "\n".join([
+            "TODAY'S TURN GLOWING",
+            "daily claimed and quest complete.",
+            f"room light {turn['light']}% | bond {self.bond} | spark {self.spark}",
+            "leave a /postcard, /bottle, or just come back tomorrow.",
+        ])
+        append_log("today", f"{source}\n{self.last_reply}")
         return self.last_reply
 
     def seal_course(self, goal: str = "") -> str:
@@ -1229,6 +1310,7 @@ class SoulState:
 
     def pulse(self) -> str:
         self.ensure_daily_quest()
+        turn = self.today_turn()
         quest_status = "glowing" if self.quest_done else "open"
         face = mood_face(self.mood)
         lines = [
@@ -1236,6 +1318,7 @@ class SoulState:
             f"{face} {datetime.now().strftime('%H:%M')} | energy {self.energy}/100 | bond {self.bond} | spark {self.spark}",
             body_whisper(),
             f"visits {self.visits} | relics {len(self.relics)} | quest {quest_status}",
+            f"today: {turn['phase']} -> {turn['command']} | light {turn['light']}%",
             "",
             "latest trace: " + self.latest_relic_text(),
             "course: " + small_course(self.heading, 38),
@@ -2117,6 +2200,14 @@ class DeckApp:
             self.state.last_reply = self.state.claim_daily_play()
             self.draw()
             return
+        if text == "/today":
+            self.state.last_reply = self.state.today_turn_text()
+            self.draw()
+            return
+        if text == "/today claim":
+            self.state.last_reply = self.state.complete_today_turn()
+            self.draw()
+            return
         if text.startswith("/use"):
             self.state.last_reply = self.state.use_stash_item(text.removeprefix("/use").strip())
             self.draw()
@@ -2283,7 +2374,7 @@ class DeckApp:
             "talk:  /ask ...  /chat  /remember ...",
             "room:  /pulse  /card  /body  /relics  /map",
             "toys:  /hunt  /wheel  /craft  /stash  /use",
-            "wall:  /daily  /badges  /nudge  /map",
+            "wall:  /today  /daily  /badges  /nudge",
             "trace: /postcard  /bottle  /seal ...",
             "help:  /play  /help  /quit",
             "",
@@ -2331,7 +2422,7 @@ class DeckApp:
             "FIRST VISIT PATH",
             "1. /door      knock. nothing risky.",
             "2. /pulse     look around the cabin.",
-            "3. /quest     see today's small invitation.",
+            "3. /today     see the one turn worth doing.",
             "4. /toy       open the side room list.",
             "5. /ask hi    call Hermes when ready.",
             "Plain text is just a note. Ctrl-Q quits.",

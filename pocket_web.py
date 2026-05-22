@@ -6,6 +6,7 @@ import html
 import json
 import mimetypes
 import threading
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -17,6 +18,57 @@ HOST = "0.0.0.0"
 PORT = 8787
 ACTION_LOCK = threading.Lock()
 ASSET_DIR = Path(__file__).resolve().parent / "asset"
+
+
+@dataclass(frozen=True)
+class DeckPage:
+    path: str
+    icon: str
+    label: str
+    page_class: str
+    nav: bool = True
+
+
+@dataclass(frozen=True)
+class WebResponse:
+    body: bytes
+    content_type: str = "text/html; charset=utf-8"
+    status: int = 200
+    cache_control: str = ""
+
+
+@dataclass(frozen=True)
+class RequestContext:
+    path: str
+    params: dict[str, list[str]]
+
+    @property
+    def partial(self) -> bool:
+        return self.params.get("partial") == ["1"]
+
+
+PAGES = [
+    DeckPage("/", "home", "Home", "deck-home"),
+    DeckPage("/room", "room", "Room", "deck-room"),
+    DeckPage("/body", "body", "Body", "deck-body"),
+    DeckPage("/memory", "memory", "Memory", "deck-memory"),
+    DeckPage("/stash", "grid", "Stash", "deck-memory"),
+    DeckPage("/badges", "badge", "Badges", "deck-memory", nav=False),
+    DeckPage("/ritual", "ritual", "Ritual", "deck-ritual"),
+    DeckPage("/settings", "settings", "Settings", "deck-settings"),
+]
+PAGE_BY_PATH = {page.path: page for page in PAGES}
+SHELL_PATHS = tuple(PAGE_BY_PATH)
+ASSETS = {
+    "logo": "/asset/opt/logo-small.webp",
+    "home_bg": "/asset/opt/home-bg.webp",
+    "room_bg": "/asset/opt/room-bg.webp",
+    "relic_sprite": "/asset/opt/relic-icons-sprite.png",
+    "robot_blush": "/asset/opt/robot-blush.webp",
+    "robot_curious": "/asset/opt/robot-curious.webp",
+    "robot_happy": "/asset/opt/robot-happy.webp",
+    "robot_sad": "/asset/opt/robot-sad.webp",
+}
 
 STYLE = """
 :root {
@@ -256,6 +308,69 @@ textarea:focus, input:focus { outline: 1px solid var(--lamp); }
   font-size: 12px;
 }
 .home-status p { margin: 0; }
+.today-turn {
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #36506e;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0b1422e8 0%, #111827de 100%);
+  box-shadow: inset 0 1px 0 #ffffff12;
+}
+.today-turn header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+.today-turn h2 {
+  margin: 0;
+  font-size: 13px;
+  color: #f0c66d;
+  font-weight: normal;
+}
+.today-turn .phase {
+  color: #79ffd2;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.today-turn p {
+  margin: 0;
+  color: #efe8d0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.today-turn small {
+  color: #8ea0b7;
+  font-size: 11px;
+}
+.turn-meter {
+  height: 7px;
+  border: 1px solid #2a405a;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #050910;
+}
+.turn-meter span {
+  display: block;
+  height: 100%;
+  width: var(--turn-light);
+  background: linear-gradient(90deg, #79ffd2, #f0c66d);
+}
+.today-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.today-actions a,
+.today-actions button {
+  min-height: 32px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  text-align: center;
+  font-size: 12px;
+}
 .speech, .room-bubble, [data-live='result'], .room-bottom pre {
   max-height: 96px;
   overflow: auto;
@@ -372,7 +487,7 @@ body.cockpit-page:after {
 .brand-tile {
   min-height: 0;
   border: 0;
-  background: url('/asset/new_ui/logo.png') center / 180% auto no-repeat;
+  background: url('__ASSET_LOGO__') center / contain no-repeat;
   display: block;
   text-indent: -9999px;
 }
@@ -434,6 +549,96 @@ body.cockpit-page:after {
   border-radius: 8px;
   background: linear-gradient(180deg, #111827ef 0%, #0a101bee 100%);
   box-shadow: inset 0 1px 0 #ffffff12, 0 14px 32px #0008;
+}
+.room-glow,
+.relic-dock,
+.little-shelf {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.room-glow {
+  right: 7%;
+  top: 12%;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffd66d33 0 18%, #79ffd220 24% 42%, transparent 70%);
+  filter: blur(12px);
+  opacity: .75;
+}
+.relic-dock {
+  right: clamp(18px, 4vw, 64px);
+  bottom: clamp(18px, 5vh, 58px);
+  display: flex;
+  gap: 10px;
+  align-items: end;
+}
+.relic-charm {
+  width: 58px;
+  height: 58px;
+  display: block;
+  border: 1px solid #355371;
+  border-radius: 10px;
+  background-color: #09121ce8;
+  background-image: url('__ASSET_RELIC_SPRITE__');
+  background-repeat: no-repeat;
+  background-size: 348px 232px;
+  box-shadow: inset 0 1px 0 #ffffff16, 0 12px 24px #0008, 0 0 20px #79ffd229;
+}
+.relic-charm.kind-visit { background-position: 0 0; }
+.relic-charm.kind-quest { background-position: -58px 0; }
+.relic-charm.kind-flash { background-position: -116px 0; }
+.relic-charm.kind-wake { background-position: -174px 0; }
+.relic-charm.kind-hunt { background-position: -232px 0; }
+.relic-charm.kind-craft { background-position: -290px 0; }
+.relic-charm.kind-memory { background-position: 0 -58px; }
+.relic-charm.kind-postcard { background-position: -58px -58px; }
+.relic-charm.kind-bottle { background-position: -116px -58px; }
+.relic-charm.kind-wheel { background-position: -174px -58px; }
+.relic-charm.kind-log { background-position: -232px -58px; }
+.relic-charm.kind-default { background-position: -290px -58px; }
+.little-shelf {
+  left: clamp(270px, 49vw, 730px);
+  bottom: clamp(122px, 18vh, 185px);
+  width: 270px;
+  min-height: 92px;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  border-bottom: 2px solid #6d5231;
+  background: linear-gradient(180deg, transparent 0%, #0a101bb5 100%);
+}
+.shelf-card {
+  position: relative;
+  min-height: 180px;
+  overflow: hidden;
+}
+.shelf-card:after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 30px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #866438, transparent);
+  box-shadow: 0 18px 0 #3a2a1b;
+}
+.shelf-empty {
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+  color: #a99a7f;
+}
+.shelf-objects {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 24px;
 }
 .screen,
 .overview-panel {
@@ -653,6 +858,10 @@ body.cockpit-page:after {
 .room-bottom > .deck-card {
   min-width: 0;
   overflow: hidden;
+}
+.room-bottom > .deck-card.primary-panel {
+  border-color: #4b6f82;
+  background: linear-gradient(180deg, #121b2ef5 0%, #08101df5 100%);
 }
 .room-bottom h2 {
   color: #fff1ce;
@@ -935,8 +1144,40 @@ body.cockpit-page:after {
     padding: 18px 14px 0;
   }
   .home-screen h1 { font-size: 24px; }
+  .room-glow {
+    width: 110px;
+    height: 110px;
+    right: 8px;
+    top: 8px;
+  }
+  .little-shelf {
+    display: none;
+  }
+  .relic-dock {
+    right: 8px;
+    bottom: 64px;
+    gap: 4px;
+  }
+  .relic-charm {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    background-size: 204px 136px;
+  }
+  .relic-charm.kind-quest { background-position: -34px 0; }
+  .relic-charm.kind-flash { background-position: -68px 0; }
+  .relic-charm.kind-wake { background-position: -102px 0; }
+  .relic-charm.kind-hunt { background-position: -136px 0; }
+  .relic-charm.kind-craft { background-position: -170px 0; }
+  .relic-charm.kind-memory { background-position: 0 -34px; }
+  .relic-charm.kind-postcard { background-position: -34px -34px; }
+  .relic-charm.kind-bottle { background-position: -68px -34px; }
+  .relic-charm.kind-wheel { background-position: -102px -34px; }
+  .relic-charm.kind-log { background-position: -136px -34px; }
+  .relic-charm.kind-default { background-position: -170px -34px; }
   .speech {
     max-width: 240px;
+    max-height: 70px;
     margin-top: 12px;
     padding: 10px;
     font-size: 11px;
@@ -958,6 +1199,8 @@ body.cockpit-page:after {
     margin-top: 10px;
     padding: 8px;
     font-size: 11px;
+    max-height: 52px;
+    overflow: hidden;
   }
   .soul-dock {
     width: 240px;
@@ -977,16 +1220,55 @@ body.cockpit-page:after {
     min-height: 48px;
     font-size: 14px;
   }
-  .room-head { padding: 12px; }
-  .room-bubble { top: 58px; right: 10px; width: 190px; font-size: 10px; }
-  .room-screen img[alt='Pocket Soul robot'] { width: 150px !important; }
+  .room-head { padding: 10px 12px; }
+  .room-head h1 { font-size: 18px; }
+  .room-head .small { display: none; }
+  .room-bubble {
+    top: 42px;
+    right: 8px;
+    width: 168px;
+    max-height: 70px;
+    padding: 8px;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+  .room-screen img[alt='Pocket Soul robot'] {
+    width: 112px !important;
+    top: 44% !important;
+  }
   .room-bottom {
     left: 8px;
     right: 8px;
     bottom: 8px;
-    height: 45%;
+    height: 43%;
     grid-template-columns: 1fr;
     overflow: auto;
+    gap: 8px;
+  }
+  .room-bottom > .deck-card { padding: 8px !important; }
+  .room-bottom h2 { font-size: 12px; margin-bottom: 5px; }
+  .room-bottom pre,
+  [data-live='result'] {
+    max-height: 58px;
+    font-size: 10px;
+  }
+  .quick-input {
+    grid-template-columns: 1fr 48px;
+    gap: 6px;
+  }
+  .quick-input input {
+    height: 38px;
+    padding: 8px;
+    font-size: 11px;
+  }
+  .quick-input button,
+  .round-tools .icon-button {
+    min-height: 38px;
+  }
+  .round-tools {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    margin: 8px 0;
   }
   .body-mini,
   .memory-mini {
@@ -1011,6 +1293,86 @@ body.cockpit-page:after {
 
 def esc(value: object) -> str:
     return html.escape(str(value), quote=True)
+
+
+def asset(name: str) -> str:
+    return ASSETS[name]
+
+
+def render_style() -> str:
+    style = STYLE
+    for name, path in ASSETS.items():
+        style = style.replace(f"__ASSET_{name.upper()}__", path)
+    return style
+
+
+def is_provider_error(text: str) -> bool:
+    raw = (text or "").lower()
+    needles = [
+        "http 429",
+        "daily_limit_exceeded",
+        "api call failed",
+        "no such file or directory",
+        "did not answer",
+        "traceback",
+        "connection error",
+        "timeout",
+    ]
+    return any(needle in raw for needle in needles)
+
+
+def charm_kind(kind: str) -> str:
+    known = {
+        "visit",
+        "quest",
+        "flash",
+        "wake",
+        "hunt",
+        "craft",
+        "memory",
+        "postcard",
+        "bottle",
+        "wheel",
+        "log",
+    }
+    clean = "".join(ch for ch in (kind or "").lower() if ch.isalnum() or ch == "-")
+    return clean if clean in known else "default"
+
+
+def relic_charm_html(kind: str, label: str = "") -> str:
+    title = esc(label or kind or "room trace")
+    return f"<span class='relic-charm kind-{charm_kind(kind)}' title='{title}' aria-label='{title}'></span>"
+
+
+def recent_relic_charms(state: pocket_soul.SoulState, limit: int = 4) -> str:
+    visible = [item for item in state.relics if item.get("kind") != "visit"] or state.relics
+    charms = [
+        relic_charm_html(item.get("kind", ""), item.get("title", "room trace"))
+        for item in visible[-limit:][::-1]
+    ]
+    if not charms:
+        charms = [relic_charm_html("default", "empty shelf")]
+    return "".join(charms)
+
+
+def recent_relics_html(state: pocket_soul.SoulState, limit: int = 4) -> str:
+    charms = recent_relic_charms(state, limit)
+    return "<div class='relic-dock' aria-hidden='true'>" + "".join(charms) + "</div>"
+
+
+def shelf_objects_html(state: pocket_soul.SoulState, limit: int = 8) -> str:
+    items = state.stash_items(limit)
+    if items:
+        charms = [relic_charm_html(item.get("kind", "hunt"), item.get("title", "stash object")) for item in items]
+        return "<div class='shelf-objects'>" + "".join(charms) + "</div>"
+    return (
+        "<p class='shelf-empty'>The shelf is waiting for its first useful little thing.</p>"
+        "<div class='shelf-objects'>"
+        + relic_charm_html("hunt", "hunt")
+        + relic_charm_html("wheel", "spark wheel")
+        + relic_charm_html("craft", "craft")
+        + "</div>"
+    )
 
 
 ICONS = {
@@ -1068,6 +1430,32 @@ def nudge_preview(state: pocket_soul.SoulState) -> str:
         return state.next_play_nudge()
     finally:
         state.last_reply = old_reply
+
+
+def today_turn_html(state: pocket_soul.SoulState, compact: bool = False) -> str:
+    turn = state.today_turn()
+    progress = "done" if turn["daily_done"] else f"{turn['progress']}/{turn['target']}"
+    quest = "done" if turn["quest_done"] else "open"
+    command = str(turn["command"])
+    action = esc(str(turn["action"]))
+    reward = esc(str(turn["reward"]))
+    reason = esc(str(turn["reason"]))
+    light = max(0, min(100, int(turn["light"])))
+    target_href = "/ritual" if command in {"/postcard", "/bottle"} else "/room"
+    detail = reward if compact else f"{reason} / {reward}"
+    return f"""
+<section class='today-turn' style='--turn-light:{light}%'>
+  <header><h2>Today's Turn</h2><span class='phase'>{esc(str(turn['phase']))} / {light}%</span></header>
+  <p><b>{esc(command)}</b> {action}</p>
+  <div class='turn-meter' aria-hidden='true'><span></span></div>
+  <small>daily {esc(progress)} | quest {esc(quest)} | badges {esc(str(turn['badges_lit']))}/{esc(str(turn['badges_total']))}</small>
+  <small>{detail}</small>
+  <div class='today-actions'>
+    <a class='ghost-button' href='{target_href}'>{esc(command)}</a>
+    <form method='post' action='/today' data-action='async'><button name='action' value='claim'>Claim</button></form>
+  </div>
+</section>
+"""
 
 
 def latest_log() -> str:
@@ -1168,12 +1556,12 @@ def status_word(state: pocket_soul.SoulState) -> str:
 def robot_image(state: pocket_soul.SoulState) -> str:
     text = f"{state.mood} {state.last_reply}".lower()
     if "sad" in text or "quiet" in text or state.energy < 35:
-        return "/asset/new_ui/robot-sad.png"
+        return asset("robot_sad")
     if "blush" in text or "love" in text or state.bond >= 25:
-        return "/asset/new_ui/robot-blush.png"
+        return asset("robot_blush")
     if "happy" in text or ":)" in state.mood:
-        return "/asset/new_ui/robot-happy.png"
-    return "/asset/new_ui/robot-curious.png"
+        return asset("robot_happy")
+    return asset("robot_curious")
 
 
 def room_voice(text: str) -> str:
@@ -1181,8 +1569,8 @@ def room_voice(text: str) -> str:
     raw = (text or "").strip()
     if not raw:
         return "I am here. Say one real sentence, or knock softly."
-    if "No such file or directory" in raw or "did not answer" in raw:
-        return "I am here. My inner voice is quiet right now, but the room is still listening."
+    if is_provider_error(raw):
+        return "My inner voice is resting. The local room is still awake; touch the shelf or leave one sentence."
     lines = [line.strip() for line in raw.replace("\r", "\n").splitlines() if line.strip()]
     if lines and lines[0].upper().startswith("CHAT WINDOW"):
         candidates: list[str] = []
@@ -1196,10 +1584,12 @@ def room_voice(text: str) -> str:
             raw = lines[-1]
     raw = raw.replace("/ask keeps talking Enter blinks", "").strip()
     raw = raw.strip("* \n\t")
+    if is_provider_error(raw):
+        return "My inner voice is resting. The local room is still awake; touch the shelf or leave one sentence."
     return raw or "I am here. Say one real sentence, or knock softly."
 
 
-def doorstep(result: str = "") -> bytes:
+def doorstep(result: str = "", partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     words = body_words()
@@ -1207,11 +1597,13 @@ def doorstep(result: str = "") -> bytes:
     presence = f"Feeling {state.mood}. Body {words['temperature']}. The window is open. Today's thread: {state.quest_name}."
     deck = deck_page("/", f"""
     <section class='deck-card screen home-screen'>
-      <div class='asset-bg' style="background-image:url('/asset/ui/home-bg.png')"></div>
+      <div class='asset-bg' style="background-image:url('{asset('home_bg')}')"></div>
+      <div class='room-glow' aria-hidden='true'></div>
       <div class='screen-content home-copy'>
         <h1>Pocket Soul<br>is awake.</h1>
         <div class='speech' data-live='latest'>{esc(whisper)}<br><span class='heart'>*</span></div>
         <div class='presence-line' data-live='vitals'>{esc(presence)}</div>
+        {today_turn_html(state, True)}
         <div class='soul-dock'>
           <form class='quick-input' method='post' action='/ask' data-action='async'>
             <input name='prompt' placeholder='Say one real sentence to Pocket Soul...'>
@@ -1233,9 +1625,10 @@ def doorstep(result: str = "") -> bytes:
       <div class='screen-content' style='position:absolute; right:22px; bottom:18px; color:#7f8aa0; font-size:11px'>
         <span>room online</span> / <span data-live='stamp'>{esc(datetime.now().strftime('%H:%M:%S'))}</span>
       </div>
+      {recent_relics_html(state)}
       {f"<pre class='screen-content' data-live='result' style='position:absolute; left:78px; right:78px; bottom:18px; max-height:88px; overflow:hidden'>{esc(result)}</pre>" if result else ""}
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1274,6 +1667,7 @@ def doorstep(result: str = "") -> bytes:
 def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object]:
     state = state or pocket_soul.SoulState.load()
     words = body_words()
+    turn = state.today_turn()
     vitals_html = "".join(
         [
             f"<div class='mini-tile'><span>feeling</span><b>{esc(state.mood)}</b></div>",
@@ -1287,9 +1681,10 @@ def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object
         "vitals": f"{words['temperature']} / {words['window']} / {state.latest_relic_text()}",
         "presence": presence,
         "vitals_html": vitals_html,
-        "latest": state.latest_relic_text(),
+        "latest": room_voice(state.last_reply) if is_provider_error(state.last_reply) else state.latest_relic_text(),
         "reply": room_voice(state.last_reply),
         "mood": state.mood,
+        "today": turn,
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "relic_count": len(state.relics),
     }
@@ -1390,6 +1785,7 @@ function setThinking(active, text) {
   const phase = document.querySelector("[data-live='phase']");
   if (phase) phase.textContent = text || '';
 }
+const SHELL_PATHS = new Set(__SHELL_PATHS__);
 function wakeRoom() {
   // Keep web calm: data updates only, no decorative motion.
 }
@@ -1469,6 +1865,39 @@ async function submitAction(form) {
     buttons.forEach((button) => button.disabled = false);
   }
 }
+function setActiveNav(path) {
+  const clean = path === '' ? '/' : path;
+  document.querySelectorAll('.nav-item').forEach((item) => {
+    const href = item.getAttribute('href') || '/';
+    item.classList.toggle('is-active', href === clean);
+  });
+}
+async function navigateRoom(path, push = true) {
+  const clean = path || '/';
+  if (!SHELL_PATHS.has(clean)) {
+    window.location.href = clean;
+    return;
+  }
+  const main = document.querySelector('.deck-main');
+  if (!main) {
+    window.location.href = clean;
+    return;
+  }
+  main.setAttribute('aria-busy', 'true');
+  try {
+    const res = await fetch(clean + '?partial=1', {cache: 'no-store'});
+    if (!res.ok) throw new Error('navigation failed');
+    main.innerHTML = await res.text();
+    setActiveNav(clean);
+    document.body.className = 'cockpit-page';
+    if (push) history.pushState({path: clean}, '', clean);
+    await refreshVitals();
+  } catch (_) {
+    window.location.href = clean;
+  } finally {
+    main.removeAttribute('aria-busy');
+  }
+}
 document.addEventListener('submit', (event) => {
   const form = event.target;
   if (form && form.matches("[data-action='flash']")) {
@@ -1479,42 +1908,39 @@ document.addEventListener('submit', (event) => {
     submitAction(form);
   }
 });
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[href]');
+  if (!link || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const url = new URL(link.href, window.location.href);
+  if (url.origin !== window.location.origin) return;
+  if (!SHELL_PATHS.has(url.pathname)) return;
+  event.preventDefault();
+  navigateRoom(url.pathname);
+});
+window.addEventListener('popstate', () => navigateRoom(window.location.pathname, false));
 </script>
 """
 
 
 def page(content: str) -> bytes:
-    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{STYLE}</style></head><body><main>{content}</main>{SCRIPT}</body></html>""".encode()
+    script = SCRIPT.replace("__SHELL_PATHS__", json.dumps(list(SHELL_PATHS)))
+    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{render_style()}</style></head><body><main>{content}</main>{script}</body></html>""".encode()
 
 
-def deck_page(path: str, inner: str) -> bytes | None:
-    page_class = {
-        "/": "deck-home",
-        "/room": "deck-room",
-        "/body": "deck-body",
-        "/memory": "deck-memory",
-        "/stash": "deck-memory",
-        "/badges": "deck-memory",
-        "/ritual": "deck-ritual",
-        "/settings": "deck-settings",
-    }.get(path, "deck-home")
-    nav_items = [
-        ("/", "home", "Home"),
-        ("/room", "room", "Room"),
-        ("/body", "body", "Body"),
-        ("/memory", "memory", "Memory"),
-        ("/stash", "grid", "Stash"),
-        ("/ritual", "ritual", "Ritual"),
-        ("/settings", "settings", "Settings"),
-    ]
+def deck_page(path: str, inner: str, partial: bool = False) -> bytes | None:
+    if partial:
+        return inner.encode()
+    page_meta = PAGE_BY_PATH.get(path, PAGE_BY_PATH["/"])
     nav_html = "".join(
-        f"<a class='nav-item{' is-active' if href == path else ''}' href='{href}'>"
-        f"<span class='nav-icon'>{icon(name)}</span>"
-        f"<span class='nav-label'><strong>{label}</strong></span></a>"
-        for href, name, label in nav_items
+        f"<a class='nav-item{' is-active' if page.path == path else ''}' href='{page.path}'>"
+        f"<span class='nav-icon'>{icon(page.icon)}</span>"
+        f"<span class='nav-label'><strong>{page.label}</strong></span></a>"
+        for page in PAGES
+        if page.nav
     )
-    html_doc = f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{STYLE}</style></head><body class='cockpit-page'><main>
-<section class='deck-page {page_class}'>
+    script = SCRIPT.replace("__SHELL_PATHS__", json.dumps(list(SHELL_PATHS)))
+    html_doc = f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{render_style()}</style></head><body class='cockpit-page'><main>
+<section class='deck-page {page_meta.page_class}'>
   <aside class='sidebar'>
     <a class='brand-tile' href='/'>Pocket Soul</a>
     <nav class='side-nav'>{nav_html}</nav>
@@ -1523,7 +1949,7 @@ def deck_page(path: str, inner: str) -> bytes | None:
 {inner}
   </div>
 </section>
-</main>{SCRIPT}</body></html>"""
+</main>{script}</body></html>"""
     return html_doc.encode()
 
 
@@ -1542,27 +1968,28 @@ def asset_response(path: str) -> tuple[bytes, str, int]:
     return target.read_bytes(), content_type, 200
 
 
-def room_page(result: str = "") -> bytes:
+def room_page(result: str = "", partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     latest_relic = state.latest_relic_text()
     stash = state.stash_view(4)
     nudge = nudge_preview(state)
-    daily = state.daily_view()
     relics = state.relic_shelf(5)
     reply = room_voice(state.last_reply)
     deck = deck_page("/room", f"""
     <section class='deck-card screen room-screen'>
-      <div class='asset-bg' style="background-image:url('/asset/ui/room-bg.png')"></div>
+      <div class='asset-bg' style="background-image:url('{asset('room_bg')}')"></div>
+      <div class='room-glow' aria-hidden='true'></div>
       <div class='room-head'>
         <div><h1>Pocket Soul</h1><p class='small'>It is listening from the room.</p></div>
         <div><a class='ghost-button' href='/body'>Body</a></div>
       </div>
       <div class='room-bubble'>{esc(reply)}<br><span class='heart'>*</span></div>
+      <div class='little-shelf' aria-hidden='true'>{recent_relic_charms(state)}</div>
       <img src='{robot_image(state)}' alt='Pocket Soul robot' style='position:absolute; left:50%; top:56%; width:min(340px,42vw); max-height:300px; object-fit:contain; transform:translate(-50%,-50%); filter:drop-shadow(0 20px 34px #000c) drop-shadow(0 0 22px #8b4dff66); pointer-events:none'>
       <div class='room-bottom'>
-        <section class='deck-card' style='padding:12px'><h2>Daily</h2><pre>{esc(daily)}</pre><form method='post' action='/daily' data-action='async'><button class='ghost-button' name='action' value='claim'>Claim</button></form></section>
-        <section class='deck-card' style='padding:12px'>
+        {today_turn_html(state)}
+        <section class='deck-card primary-panel' style='padding:12px'>
           <form class='quick-input' method='post' action='/ask' data-action='async'><input name='prompt' placeholder='Tell Pocket Soul what is happening...'><button name='mode' value='council'>Talk</button></form>
           <div class='round-tools'>
             <form method='post' action='/doorbell' data-action='async'><button class='icon-button' aria-label='Knock' title='Knock'>{icon('knock')}</button></form>
@@ -1576,7 +2003,7 @@ def room_page(result: str = "") -> bytes:
         <section class='deck-card' style='padding:12px'><h2>Relationship</h2><pre>{esc(nudge)}</pre><a class='ghost-button' href='/stash'>Open Stash</a></section>
       </div>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1622,7 +2049,12 @@ def room_page(result: str = "") -> bytes:
     return page(content)
 
 
-def body_page() -> bytes:
+def route_page(path: str, partial: bool = False) -> bytes:
+    renderer = PAGE_RENDERERS.get(path, doorstep)
+    return renderer(partial=partial)
+
+
+def body_page(partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     words = body_words()
     deck = deck_page("/body", f"""
@@ -1645,7 +2077,7 @@ def body_page() -> bytes:
         <div class='service-pill'><span>relics</span><b>{len(state.relics)} traces</b></div>
       </div>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1672,7 +2104,7 @@ def body_page() -> bytes:
     return page(content)
 
 
-def memory_page() -> bytes:
+def memory_page(partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     memories = state.memories[-12:]
     memory_lines = "\n".join(f"- {item}" for item in memories) or "It has not clearly remembered anything yet."
@@ -1690,11 +2122,12 @@ def memory_page() -> bytes:
       </div>
       <div>
         <div class='constellation'></div>
+        <div class='shelf-objects'>{recent_relic_charms(state, 6)}</div>
         <pre>{esc(memory_lines)}</pre>
         <pre>{esc(relic_lines)}</pre>
       </div>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1712,11 +2145,11 @@ def memory_page() -> bytes:
     return page(content)
 
 
-def stash_page() -> bytes:
+def stash_page(partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     stash_text = state.stash_view(12)
     deck = deck_page("/stash", f"""
-    <section class='deck-card overview-panel memory-mini'>
+    <section class='deck-card overview-panel memory-mini shelf-card'>
       <div>
         <div class='mini-header'><h2>Pocket Stash</h2><span class='mini-sub'>spark {esc(state.spark)} / streak {esc(state.hunt_streak)}</span></div>
         <pre>{esc(stash_text)}</pre>
@@ -1728,10 +2161,11 @@ def stash_page() -> bytes:
         <pre data-live='result'></pre>
       </div>
       <div>
+        {shelf_objects_html(state, 12)}
         {stash_html(state, 12, True)}
       </div>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1747,7 +2181,7 @@ def stash_page() -> bytes:
     return page(content)
 
 
-def badges_page() -> bytes:
+def badges_page(partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     badge_text = state.badges_view()
     lit = sum(1 for _name, _note, unlocked in state.badge_rows() if unlocked)
@@ -1762,7 +2196,7 @@ def badges_page() -> bytes:
         {badges_html(state)}
       </div>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1778,7 +2212,7 @@ def badges_page() -> bytes:
     return page(content)
 
 
-def ritual_page(result: str = "") -> bytes:
+def ritual_page(result: str = "", partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     deck = deck_page("/ritual", f"""
     <section class='deck-card overview-panel ritual-mini'>
@@ -1793,7 +2227,7 @@ def ritual_page(result: str = "") -> bytes:
       </div>
       <pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     content = f"""
@@ -1814,7 +2248,7 @@ def ritual_page(result: str = "") -> bytes:
     return page(content)
 
 
-def settings_page() -> bytes:
+def settings_page(partial: bool = False) -> bytes:
     state = pocket_soul.SoulState.load()
     words = body_words()
     service = "online" if words.get("presence") == "reachable" else "offline"
@@ -1836,52 +2270,77 @@ network: {esc(words['net'])}
 uptime: {esc(words['uptime'])}
 mode: WalnutPi body first</pre></div>
     </section>
-""")
+""", partial)
     if deck:
         return deck
     return page(f"{nav('/settings')}<section class='room-page with-art'><h1>Settings</h1><p class='small'>local device</p><pre>web room: {esc(service)}\nrelic count: {len(state.relics)}\nnetwork: {esc(words['net'])}</pre></section>")
 
 
+PAGE_RENDERERS = {
+    "/": doorstep,
+    "/room": room_page,
+    "/body": body_page,
+    "/memory": memory_page,
+    "/stash": stash_page,
+    "/badges": badges_page,
+    "/ritual": ritual_page,
+    "/settings": settings_page,
+}
+
+
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, body: bytes, status: int = 200, content_type: str = "text/html; charset=utf-8") -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
+    def _send_response(self, response: WebResponse, include_body: bool = True) -> None:
+        self.send_response(response.status)
+        self.send_header("Content-Type", response.content_type)
+        self.send_header("Content-Length", str(len(response.body)))
+        if response.cache_control:
+            self.send_header("Cache-Control", response.cache_control)
         self.end_headers()
-        self.wfile.write(body)
+        if include_body:
+            self.wfile.write(response.body)
+
+    def _send(
+        self,
+        body: bytes,
+        status: int = 200,
+        content_type: str = "text/html; charset=utf-8",
+        cache_control: str = "",
+    ) -> None:
+        self._send_response(WebResponse(body, content_type, status, cache_control))
+
+    def do_HEAD(self) -> None:
+        response = self._resolve_get()
+        self._send_response(response, include_body=False)
 
     def do_GET(self) -> None:
+        self._send_response(self._resolve_get())
+
+    def _resolve_get(self, include_body: bool = True) -> WebResponse:
         parsed = urlparse(self.path)
-        path = parsed.path
-        params = parse_qs(parsed.query)
+        ctx = RequestContext(parsed.path, parse_qs(parsed.query))
+        path = ctx.path
         if path.startswith("/asset/"):
             body, content_type, status = asset_response(path)
-            self._send(body, status=status, content_type=content_type)
-            return
+            cache = "public, max-age=86400" if status == 200 else ""
+            return WebResponse(body if include_body else b"", content_type, status, cache)
         if path == "/relic":
-            index = parse_relic_id(params.get("id"))
-            self._send(relic_page(index))
-            return
+            index = parse_relic_id(ctx.params.get("id"))
+            return WebResponse(relic_page(index) if include_body else b"")
         if path == "/api/state":
             state = pocket_soul.SoulState.load().__dict__
-            self._send(json.dumps(state, ensure_ascii=False).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(state, ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/live":
-            self._send(json.dumps(live_payload(), ensure_ascii=False).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(live_payload(), ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/card":
             state = pocket_soul.SoulState.load()
-            self._send(state.soul_card().encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(state.soul_card().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/heading":
             state = pocket_soul.SoulState.load()
             body = {"heading": state.heading, "next_action": state.next_action}
-            self._send(json.dumps(body, ensure_ascii=False).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(body, ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/relics":
             state = pocket_soul.SoulState.load()
-            self._send(json.dumps(state.relics, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(state.relics, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/stash":
             state = pocket_soul.SoulState.load()
             body = {
@@ -1890,8 +2349,7 @@ class Handler(BaseHTTPRequestHandler):
                 "items": state.stash_items(24),
                 "text": state.stash_view(12),
             }
-            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/badges":
             state = pocket_soul.SoulState.load()
             rows = [
@@ -1904,16 +2362,14 @@ class Handler(BaseHTTPRequestHandler):
                 "badges": rows,
                 "text": state.badges_view(),
             }
-            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/nudge":
             state = pocket_soul.SoulState.load()
             result = state.next_play_nudge()
             state.last_reply = result
             state.save()
             body = {"result": result, "live": live_payload(state)}
-            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/daily":
             state = pocket_soul.SoulState.load()
             body = {
@@ -1928,73 +2384,50 @@ class Handler(BaseHTTPRequestHandler):
                 },
                 "text": state.daily_view(),
             }
-            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
+        if path == "/api/today":
+            state = pocket_soul.SoulState.load()
+            body = {
+                "today": state.today_turn(),
+                "text": state.today_turn_text(),
+            }
+            return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/relic":
-            index = parse_relic_id(params.get("id"))
+            index = parse_relic_id(ctx.params.get("id"))
             relic, total = relic_detail(index)
             body = {"index": index, "total": total, "relic": relic}
             status = 200 if relic is not None else 404
-            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), status=status, content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8", status)
         if path == "/api/map":
             state = pocket_soul.SoulState.load()
-            self._send(state.constellation().encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(state.constellation().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/doorbell":
             state = pocket_soul.SoulState.load()
             greeting = state.doorbell("api")
             state.save()
-            self._send(greeting.encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(greeting.encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/body":
-            self._send(json.dumps(pocket_soul.body_scan(), ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
-            return
+            return WebResponse(json.dumps(pocket_soul.body_scan(), ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/pulse":
             state = pocket_soul.SoulState.load()
-            self._send(state.pulse().encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(state.pulse().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/nightly":
             state = pocket_soul.SoulState.load()
             summary = state.nightly_summary()
             state.save()
-            self._send(summary.encode(), content_type="text/markdown; charset=utf-8")
-            return
+            return WebResponse(summary.encode() if include_body else b"", "text/markdown; charset=utf-8")
         if path == "/api/postcard":
-            self._send(latest_postcard().encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(latest_postcard().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/bottle":
             state = pocket_soul.SoulState.load()
-            self._send(state.pickup_bottle().encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(state.pickup_bottle().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/bridge":
-            self._send(latest_bridge().encode(), content_type="text/plain; charset=utf-8")
-            return
+            return WebResponse(latest_bridge().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/bridge-flash":
-            self._send(latest_flash().encode(), content_type="text/plain; charset=utf-8")
-            return
-        if path == "/room":
-            self._send(room_page())
-            return
-        if path == "/body":
-            self._send(body_page())
-            return
-        if path == "/memory":
-            self._send(memory_page())
-            return
-        if path == "/stash":
-            self._send(stash_page())
-            return
-        if path == "/badges":
-            self._send(badges_page())
-            return
-        if path == "/ritual":
-            self._send(ritual_page())
-            return
-        if path == "/settings":
-            self._send(settings_page())
-            return
-        self._send(doorstep())
+            return WebResponse(latest_flash().encode() if include_body else b"", "text/plain; charset=utf-8")
+        if path in SHELL_PATHS:
+            return WebResponse(route_page(path, partial=ctx.partial) if include_body else b"")
+        return WebResponse(doorstep() if include_body else b"")
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -2015,7 +2448,7 @@ class Handler(BaseHTTPRequestHandler):
     def _post_page(self, path: str, data: dict[str, list[str]]) -> None:
         with ACTION_LOCK:
             result = run_action(path, data)
-        if path in {"/ritual", "/quest", "/postcard", "/nightly", "/bottle", "/bridge-flash"}:
+        if path in {"/ritual", "/quest", "/postcard", "/nightly", "/bottle", "/bridge-flash", "/today"}:
             self._send(ritual_page(result))
             return
         if path == "/remember":
@@ -2061,6 +2494,11 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         state = pocket_soul.SoulState.load()
         action = data.get("action", ["view"])[0]
         result = state.claim_daily_play("web button") if action == "claim" else state.daily_view()
+        state.save()
+    elif path == "/today":
+        state = pocket_soul.SoulState.load()
+        action = data.get("action", ["view"])[0]
+        result = state.complete_today_turn("web button") if action == "claim" else state.today_turn_text()
         state.save()
     elif path == "/wheel":
         state = pocket_soul.SoulState.load()

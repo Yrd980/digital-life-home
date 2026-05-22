@@ -96,8 +96,9 @@ turn
 
 ## Slash Commands
 
-Think of the room in three visit depths:
+Think of the room as one daily turn with three visit depths. Start with `/today`: it shows the next useful action, the reward, and how bright the room is becoming.
 
+- Daily turn: `/today`, `/today claim`, `/daily`
 - Touch the room: `/door`, `/quest`, `/heading`
 - Stay with the room: `/pulse`, `/card`, `/body`, `/relics`, `/map`
 - Take a real turn: `/ask ...`, `/dream ...`, `/postcard`, `/bottle`, `/seal ...`, `/complete`
@@ -106,6 +107,8 @@ Think of the room in three visit depths:
 
 Detailed commands:
 - `/help`: show command hints
+- `/today`: show the one turn worth doing now
+- `/today claim`: claim the current daily turn when ready
 - `/ask question`: ask Hermes; this can be slow
 - `/dream prompt`: get one omen, ritual, or five-minute task
 - plain text: leave a quick note without a heavy Hermes call

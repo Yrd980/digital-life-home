@@ -49,6 +49,23 @@ Together they avoid the trap of being only a command line:
 - Natural language should be enough; slash commands are shortcuts.
 - The user should feel they are visiting a tiny resident, not operating a settings page.
 
+## Product Extensibility Contract
+
+New visible behavior starts in `pocket_soul.ACTION_SPECS`.
+
+Each action needs:
+
+- a slash command
+- one behavior layer: daily, touch, dwell, play, turn, memory, side, guide, or system
+- a short human summary
+- an optional web path
+- whether it mutates local state
+- whether it calls the model
+
+The catalog feeds command completion, TUI help, and `/api/actions`. Adding a feature should not begin by adding another menu. Add the action metadata first, then wire the smallest execution path that makes the action real.
+
+Long-term rule: actions are product capabilities; pages and scripts are surfaces. The same action should be able to appear on the TUI, web room, shell scripts, or future hardware keys without inventing a new name each time.
+
 ## Current Body Layers
 
 1. `pocket-soul`: physical/TUI face.

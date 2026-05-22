@@ -15,7 +15,7 @@ import textwrap
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -255,50 +255,75 @@ TOY_ROLE_ALIASES = {
     "workshop": "utility",
 }
 
-SLASH_COMMANDS = [
-    "/door",
-    "/pulse",
-    "/ask",
-    "/play",
-    "/toy",
-    "/help",
-    "/quest",
-    "/card",
-    "/body",
-    "/relics",
-    "/map",
-    "/remember",
-    "/dream",
-    "/postcard",
-    "/bottle",
-    "/seal",
-    "/complete",
-    "/heading",
-    "/touch",
-    "/stay",
-    "/turn",
-    "/quit",
-    "/blink",
-    "/pet",
-    "/fortune",
-    "/chat",
-    "/pocket",
-    "/tarot",
-    "/mood",
-    "/spark",
-    "/log",
-    "/ritual",
-    "/feed",
-    "/hunt",
-    "/craft",
-    "/stash",
-    "/use",
-    "/wheel",
-    "/badges",
-    "/nudge",
-    "/daily",
-    "/today",
+@dataclass(frozen=True)
+class ActionSpec:
+    command: str
+    title: str
+    layer: str
+    summary: str
+    web_path: str = ""
+    mutates: bool = False
+    model: bool = False
+    primary: bool = False
+
+
+ACTION_SPECS = [
+    ActionSpec("/today", "Today's Turn", "daily", "one current action, reward, and room-light progress", "/today", True, primary=True),
+    ActionSpec("/daily", "Daily Play", "daily", "toy-loop progress and claim status", "/daily", True),
+    ActionSpec("/door", "Doorbell", "touch", "knock and leave a tiny visit trace", "/doorbell", True, primary=True),
+    ActionSpec("/blink", "Blink", "touch", "instant proof of life and one spark", mutates=True),
+    ActionSpec("/pulse", "Pulse", "dwell", "body, quest, relics, and today's next move", "/api/pulse", primary=True),
+    ActionSpec("/card", "Soul Card", "dwell", "portable identity snapshot", "/api/card"),
+    ActionSpec("/body", "Body Scan", "dwell", "machine state translated into body language", "/api/body"),
+    ActionSpec("/relics", "Relic Shelf", "dwell", "recent durable traces", "/api/relics"),
+    ActionSpec("/map", "Constellation", "dwell", "relics as a tiny sky", "/api/map"),
+    ActionSpec("/stash", "Pocket Stash", "play", "hunt and craft objects kept on the shelf", "/stash"),
+    ActionSpec("/hunt", "Hunt", "play", "find an object and gain spark", "/hunt", True, primary=True),
+    ActionSpec("/use", "Use", "play", "touch the newest stash item", "/use", True),
+    ActionSpec("/craft", "Craft", "play", "spend spark on a keepsake", "/craft", True),
+    ActionSpec("/wheel", "Spark Wheel", "play", "spend spark on a quick chance", "/wheel", True),
+    ActionSpec("/badges", "Badges", "play", "see long-term unlocks", "/badges"),
+    ActionSpec("/nudge", "Nudge", "play", "pick the next playful move", "/nudge", True),
+    ActionSpec("/ask", "Ask Hermes", "turn", "call the inner voice when meaning is needed", "/ask", True, True, True),
+    ActionSpec("/dream", "Dream", "turn", "one omen or five-minute task", mutates=True, model=True),
+    ActionSpec("/postcard", "Postcard", "turn", "write a shareable trace", "/postcard", True),
+    ActionSpec("/bottle", "Bottle", "turn", "leave a message for a future visitor", "/bottle", True),
+    ActionSpec("/seal", "Seal", "turn", "pin one course into heading and relics", mutates=True),
+    ActionSpec("/complete", "Complete Quest", "turn", "mark today's quest done", "/quest", True),
+    ActionSpec("/remember", "Remember", "memory", "save one local memory fragment", "/remember", True),
+    ActionSpec("/feed", "Feed", "memory", "give the room a memory morsel", mutates=True),
+    ActionSpec("/chat", "Chat Window", "memory", "review recent Hermes turns"),
+    ActionSpec("/heading", "Heading", "dwell", "current course and next action", "/api/heading"),
+    ActionSpec("/toy", "Toy Shelf", "side", "side-room launcher for terminal toys", "/toy", True),
+    ActionSpec("/fortune", "Fortune", "side", "one pocket omen", mutates=True),
+    ActionSpec("/pocket", "Pocket Find", "side", "find a tiny object", mutates=True),
+    ActionSpec("/tarot", "Cyber Tarot", "side", "pull a symbolic card", mutates=True),
+    ActionSpec("/mood", "Mood Shift", "side", "let the face change", mutates=True),
+    ActionSpec("/spark", "Spark Touch", "side", "add one spark", mutates=True),
+    ActionSpec("/log", "Captain Log", "side", "write a short voyage line", mutates=True),
+    ActionSpec("/ritual", "Tiny Ritual", "side", "get a 30-second room ritual", "/ritual", True),
+    ActionSpec("/touch", "Touch Help", "guide", "show light-touch options"),
+    ActionSpec("/stay", "Stay Help", "guide", "show dwell options"),
+    ActionSpec("/turn", "Turn Help", "guide", "show deep-turn options"),
+    ActionSpec("/play", "Play Guide", "guide", "first-visit path"),
+    ActionSpec("/help", "Help", "guide", "command guide"),
+    ActionSpec("/quit", "Quit", "system", "exit the TUI"),
 ]
+
+ACTIONS = {spec.command: spec for spec in ACTION_SPECS}
+SLASH_COMMANDS = [spec.command for spec in ACTION_SPECS]
+ACTION_LAYER_LABELS = {
+    "daily": "daily turn",
+    "touch": "light touch",
+    "dwell": "dwell",
+    "play": "play loop",
+    "turn": "deep turn",
+    "memory": "memory",
+    "side": "side room",
+    "guide": "guides",
+    "system": "system",
+}
+ACTION_LAYER_ORDER = ["daily", "touch", "dwell", "play", "turn", "memory", "side", "guide", "system"]
 
 COMMAND_COMPLETION_HINTS = {
     "/a": "/ask",
@@ -437,6 +462,33 @@ def count_log_sections(text: str) -> dict[str, int]:
         if len(parts) >= 3:
             counts[parts[2]] = counts.get(parts[2], 0) + 1
     return counts
+
+
+def action_catalog(layer: str = "") -> list[dict[str, object]]:
+    specs = ACTION_SPECS
+    if layer:
+        specs = [spec for spec in specs if spec.layer == layer]
+    return [asdict(spec) for spec in specs]
+
+
+def action_lines(layer: str, limit: int = 8) -> list[str]:
+    specs = [spec for spec in ACTION_SPECS if spec.layer == layer]
+    lines = []
+    for spec in specs[:limit]:
+        mark = "*" if spec.primary else "-"
+        lines.append(f"{mark} {spec.command:<10} {spec.summary}")
+    return lines
+
+
+def action_layer_summary() -> list[str]:
+    lines = []
+    for layer in ACTION_LAYER_ORDER:
+        specs = [spec for spec in ACTION_SPECS if spec.layer == layer]
+        if not specs:
+            continue
+        commands = "  ".join(spec.command for spec in specs[:5])
+        lines.append(f"{ACTION_LAYER_LABELS.get(layer, layer)}: {commands}")
+    return lines
 
 
 @dataclass
@@ -2368,18 +2420,10 @@ class DeckApp:
         self.state.last_reply = "Tab completes slash commands. Try /p then Tab."
 
     def command_guide(self) -> str:
-        return "\n".join([
-            "COMMAND GUIDE",
-            "touch: Enter  /door  /blink  /fortune",
-            "talk:  /ask ...  /chat  /remember ...",
-            "room:  /pulse  /card  /body  /relics  /map",
-            "toys:  /hunt  /wheel  /craft  /stash  /use",
-            "wall:  /today  /daily  /badges  /nudge",
-            "trace: /postcard  /bottle  /seal ...",
-            "help:  /play  /help  /quit",
-            "",
-            "Tab completes. Up/Down recalls history.",
-        ])
+        lines = ["COMMAND GUIDE"]
+        lines.extend(action_layer_summary()[:7])
+        lines.extend(["", "Tab completes. Up/Down recalls history."])
+        return "\n".join(lines)
 
     def apply_command_completion(self, prefix: str, matches: list[str]) -> None:
         if not matches:
@@ -2429,32 +2473,13 @@ class DeckApp:
         ])
 
     def touch_help_text(self) -> str:
-        return "\n".join([
-            "TOUCH THE ROOM",
-            "/door opens a quick greeting",
-            "/quest shows today's invitation",
-            "/heading shows the current line and next move",
-            "use touch when you want proof the room is alive",
-        ])
+        return "\n".join(["TOUCH THE ROOM", *action_lines("touch"), "/quest      today's invitation"])
 
     def stay_help_text(self) -> str:
-        return "\n".join([
-            "STAY WITH THE ROOM",
-            "/pulse lets you sit beside the living strip",
-            "/card gives you the portable identity card",
-            "/body /relics /map read the body and traces",
-            "use stay when you want to linger, not just poke",
-        ])
+        return "\n".join(["STAY WITH THE ROOM", *action_lines("dwell"), "/chat      recent Hermes window"])
 
     def turn_help_text(self) -> str:
-        return "\n".join([
-            "TAKE A REAL TURN",
-            "/ask hello speaks with Hermes",
-            "/dream gives back one omen or five-minute task",
-            "/postcard leaves a shareable trace",
-            "/bottle casts something forward",
-            "/seal pins one course into the deck",
-        ])
+        return "\n".join(["TAKE A REAL TURN", *action_lines("turn")])
 
     def toy_help_text(self) -> str:
         return "\n".join([

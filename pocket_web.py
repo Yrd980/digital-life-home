@@ -2331,6 +2331,9 @@ class Handler(BaseHTTPRequestHandler):
             return WebResponse(json.dumps(state, ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/live":
             return WebResponse(json.dumps(live_payload(), ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
+        if path == "/api/actions":
+            layer = (ctx.params.get("layer") or [""])[0]
+            return WebResponse(json.dumps(pocket_soul.action_catalog(layer), ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/card":
             state = pocket_soul.SoulState.load()
             return WebResponse(state.soul_card().encode() if include_body else b"", "text/plain; charset=utf-8")

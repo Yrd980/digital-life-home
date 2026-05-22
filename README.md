@@ -169,6 +169,10 @@ Runtime state is local and ignored by git:
 - Hermes notes and replies are written to `state/logs/YYYY-MM-DD.md`
 - `state/radar-*.md`: saved radar snapshots from local research runs
 
+## Extending the Room
+
+Add product behavior through `ACTION_SPECS` in `pocket_soul.py` first. That catalog powers TUI help, slash completion, and `GET /api/actions`, so new actions keep one name across the physical screen, web room, scripts, and future hardware keys.
+
 ## Research And Inspiration
 
 OpenCLI radar snapshot:

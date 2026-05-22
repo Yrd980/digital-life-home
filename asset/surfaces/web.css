@@ -1,0 +1,12 @@
+/* Desktop/tablet browser surface. The board surface has its own shell. */
+.surface-web .deck-page {
+  max-width: none;
+}
+
+.surface-web .home-screen .home-copy {
+  max-width: 760px;
+}
+
+.surface-web .theme-thumb {
+  background-size: 344px 86px;
+}

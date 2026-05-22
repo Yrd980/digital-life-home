@@ -18,6 +18,8 @@ HOST = "0.0.0.0"
 PORT = 8787
 ACTION_LOCK = threading.Lock()
 ASSET_DIR = Path(__file__).resolve().parent / "asset"
+TEMPLATE_DIR = ASSET_DIR / "templates"
+SURFACE_DIR = ASSET_DIR / "surfaces"
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,7 @@ PAGES = [
 ]
 PAGE_BY_PATH = {page.path: page for page in PAGES}
 SHELL_PATHS = tuple(PAGE_BY_PATH)
+SURFACES = {"web", "board"}
 ASSETS = {
     "logo": "/asset/opt/pocket-logo-mark.webp",
     "home_bg": "/asset/opt/home-bg.webp",
@@ -1324,6 +1327,26 @@ def render_style() -> str:
     return style
 
 
+def surface_style(surface: str) -> str:
+    extra = SURFACE_DIR / f"{surface}.css"
+    text = extra.read_text(encoding="utf-8") if extra.exists() else ""
+    return render_style() + "\n" + text
+
+
+def surface_path(path: str, surface: str = "web") -> str:
+    if surface == "web":
+        return path
+    return f"/{surface}" if path == "/" else f"/{surface}{path}"
+
+
+def normalize_surface_path(raw_path: str) -> tuple[str, str]:
+    parts = raw_path.split("/", 2)
+    if len(parts) >= 2 and parts[1] in SURFACES:
+        inner = "/" + parts[2] if len(parts) == 3 and parts[2] else "/"
+        return parts[1], inner
+    return "web", raw_path
+
+
 def is_provider_error(text: str) -> bool:
     raw = (text or "").lower()
     needles = [
@@ -1609,7 +1632,7 @@ def room_voice(text: str) -> str:
     return raw or "I am here. Say one real sentence, or knock softly."
 
 
-def doorstep(result: str = "", partial: bool = False) -> bytes:
+def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     words = body_words()
@@ -1648,7 +1671,7 @@ def doorstep(result: str = "", partial: bool = False) -> bytes:
       {recent_relics_html(state)}
       {f"<pre class='screen-content' data-live='result' style='position:absolute; left:78px; right:78px; bottom:18px; max-height:88px; overflow:hidden'>{esc(result)}</pre>" if result else ""}
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -1681,7 +1704,7 @@ def doorstep(result: str = "", partial: bool = False) -> bytes:
   </div>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
 def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object]:
@@ -1786,190 +1809,38 @@ def relic_action(index: int, action: str) -> str:
     return "Unknown relic action."
 
 
-SCRIPT = """
-<script>
-const PHASES = {
-  '/ask': ['opening inner channel', 'listening to Hermes', 'writing memory trace'],
-  '/bridge': ['scanning body', 'asking Hermes', 'shaping outside voice'],
-  '/nightly': ['reading today logs', 'folding relics', 'writing nightly'],
-  '/postcard': ['reading heading', 'drawing constellation', 'writing postcard'],
-  '/bottle': ['sealing message', 'placing bottle in state', 'refreshing shelf'],
-  '/doorbell': ['opening door', 'checking pulse', 'leaving visit relic'],
-  '/ritual': ['choosing ritual', 'asking imagination', 'saving trace'],
-  '/toy': ['checking toy bay', 'saving toy trace'],
-  '/quest': ['touching quest', 'updating state', 'saving relic'],
-  '/heading': ['reading heartbeat', 'choosing heading', 'saving course'],
-  '/remember': ['holding memory', 'writing state', 'lighting relic']
-};
-function setThinking(active, text) {
-  const phase = document.querySelector("[data-live='phase']");
-  if (phase) phase.textContent = text || '';
-}
-const SHELL_PATHS = new Set(__SHELL_PATHS__);
-function wakeRoom() {
-  // Keep web calm: data updates only, no decorative motion.
-}
-function phaseTicker(path) {
-  const phases = PHASES[path] || ['waking', 'thinking', 'writing trace'];
-  let index = 0;
-  setThinking(true, phases[index]);
-  return setInterval(() => {
-    index = Math.min(index + 1, phases.length - 1);
-    setThinking(true, phases[index]);
-  }, 1600);
-}
-async function refreshVitals() {
-  const box = document.querySelector("[data-live='vitals']");
-  const stamp = document.querySelector("[data-live='stamp']");
-  const latest = document.querySelector("[data-live='latest']");
-  const mood = document.querySelector("[data-live='mood']");
-  try {
-    const res = await fetch('/api/live', {cache: 'no-store'});
-    if (!res.ok) return;
-    const data = await res.json();
-    if (box) box.innerHTML = box.classList.contains('mini-vitals') && data.vitals_html ? data.vitals_html : (data.presence || data.vitals);
-    if (latest && (data.reply || data.latest)) latest.innerHTML = (data.reply || data.latest).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '<br><span class="heart">*</span>';
-    if (mood && data.mood) mood.textContent = data.mood;
-    if (stamp) stamp.textContent = data.time;
-  } catch (_) {}
-}
-setInterval(refreshVitals, 7000);
-async function submitFlash(form) {
-  wakeRoom();
-  const resultBox = document.querySelector("[data-live='result']");
-  const flashBox = document.querySelector("[data-live='flash']");
-  const button = form.querySelector("button");
-  if (button) button.disabled = true;
-  try {
-    const res = await fetch('/api/bridge-flash', {method: 'POST', body: new FormData(form)});
-    if (!res.ok) throw new Error('flash failed');
-    const data = await res.json();
-    if (resultBox) resultBox.textContent = data.result;
-    if (flashBox) flashBox.textContent = data.flash;
-    const live = data.live || {};
-    const vitals = document.querySelector("[data-live='vitals']");
-    const stamp = document.querySelector("[data-live='stamp']");
-    if (vitals && live.vitals) vitals.innerHTML = live.vitals;
-    if (stamp && live.time) stamp.textContent = live.time;
-    form.reset();
-  } catch (_) {
-    form.submit();
-  } finally {
-    if (button) button.disabled = false;
-  }
-}
-async function submitAction(form) {
-  wakeRoom();
-  const path = form.getAttribute('action') || '/ask';
-  const resultBox = document.querySelector("[data-live='result']");
-  const buttons = Array.from(form.querySelectorAll("button"));
-  const ticker = phaseTicker(path);
-  buttons.forEach((button) => button.disabled = true);
-  try {
-    const res = await fetch('/api' + path, {method: 'POST', body: new FormData(form)});
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    if (resultBox) resultBox.textContent = data.result || '';
-    const live = data.live || {};
-    const vitals = document.querySelector("[data-live='vitals']");
-    const stamp = document.querySelector("[data-live='stamp']");
-    if (vitals && live.vitals) vitals.innerHTML = live.vitals;
-    if (stamp && live.time) stamp.textContent = live.time;
-    await refreshVitals();
-    setThinking(false, 'done');
-  } catch (error) {
-    if (resultBox) resultBox.textContent = 'Action failed: ' + (error && error.message ? error.message : error);
-    setThinking(false, 'failed');
-  } finally {
-    clearInterval(ticker);
-    buttons.forEach((button) => button.disabled = false);
-  }
-}
-function setActiveNav(path) {
-  const clean = path === '' ? '/' : path;
-  document.querySelectorAll('.nav-item').forEach((item) => {
-    const href = item.getAttribute('href') || '/';
-    item.classList.toggle('is-active', href === clean);
-  });
-}
-async function navigateRoom(path, push = true) {
-  const clean = path || '/';
-  if (!SHELL_PATHS.has(clean)) {
-    window.location.href = clean;
-    return;
-  }
-  const main = document.querySelector('.deck-main');
-  if (!main) {
-    window.location.href = clean;
-    return;
-  }
-  main.setAttribute('aria-busy', 'true');
-  try {
-    const res = await fetch(clean + '?partial=1', {cache: 'no-store'});
-    if (!res.ok) throw new Error('navigation failed');
-    main.innerHTML = await res.text();
-    setActiveNav(clean);
-    document.body.className = 'cockpit-page';
-    if (push) history.pushState({path: clean}, '', clean);
-    await refreshVitals();
-  } catch (_) {
-    window.location.href = clean;
-  } finally {
-    main.removeAttribute('aria-busy');
-  }
-}
-document.addEventListener('submit', (event) => {
-  const form = event.target;
-  if (form && form.matches("[data-action='flash']")) {
-    event.preventDefault();
-    submitFlash(form);
-  } else if (form && form.matches("[data-action='async']")) {
-    event.preventDefault();
-    submitAction(form);
-  }
-});
-document.addEventListener('click', (event) => {
-  const link = event.target.closest('a[href]');
-  if (!link || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  const url = new URL(link.href, window.location.href);
-  if (url.origin !== window.location.origin) return;
-  if (!SHELL_PATHS.has(url.pathname)) return;
-  event.preventDefault();
-  navigateRoom(url.pathname);
-});
-window.addEventListener('popstate', () => navigateRoom(window.location.pathname, false));
-</script>
-"""
+SCRIPT_SRC = "/asset/surfaces/pocket-room.js"
 
 
-def page(content: str) -> bytes:
-    script = SCRIPT.replace("__SHELL_PATHS__", json.dumps(list(SHELL_PATHS)))
-    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{render_style()}</style></head><body><main>{content}</main>{script}</body></html>""".encode()
+
+def page(content: str, surface: str = "web") -> bytes:
+    shell_paths = esc(json.dumps([surface_path(item, surface) for item in SHELL_PATHS]))
+    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{surface_style(surface)}</style></head><body data-shell-paths='{shell_paths}'><main>{content}</main><script src='{SCRIPT_SRC}' defer></script></body></html>""".encode()
 
 
-def deck_page(path: str, inner: str, partial: bool = False) -> bytes | None:
+def deck_page(path: str, inner: str, partial: bool = False, surface: str = "web") -> bytes | None:
     if partial:
         return inner.encode()
     page_meta = PAGE_BY_PATH.get(path, PAGE_BY_PATH["/"])
     nav_html = "".join(
-        f"<a class='nav-item{' is-active' if page.path == path else ''}' href='{page.path}'>"
+        f"<a class='nav-item{' is-active' if page.path == path else ''}' href='{surface_path(page.path, surface)}'>"
         f"<span class='nav-icon'>{icon(page.icon)}</span>"
         f"<span class='nav-label'><strong>{page.label}</strong></span></a>"
         for page in PAGES
         if page.nav
     )
-    script = SCRIPT.replace("__SHELL_PATHS__", json.dumps(list(SHELL_PATHS)))
-    html_doc = f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{render_style()}</style></head><body class='cockpit-page'><main>
-<section class='deck-page {page_meta.page_class}'>
-  <aside class='sidebar'>
-    <a class='brand-tile' href='/'>Pocket Soul</a>
-    <nav class='side-nav'>{nav_html}</nav>
-  </aside>
-  <div class='deck-main'>
-{inner}
-  </div>
-</section>
-</main>{script}</body></html>"""
+    shell = TEMPLATE_DIR / ("board-shell.html" if surface == "board" else "web-shell.html")
+    template = shell.read_text(encoding="utf-8")
+    shell_paths = [surface_path(item, surface) for item in SHELL_PATHS]
+    html_doc = template.format(
+        style=surface_style(surface),
+        page_class=page_meta.page_class,
+        home_href=surface_path("/", surface),
+        nav=nav_html,
+        content=inner,
+        shell_paths=esc(json.dumps(shell_paths)),
+        script_src=SCRIPT_SRC,
+    )
     return html_doc.encode()
 
 
@@ -1988,7 +1859,7 @@ def asset_response(path: str) -> tuple[bytes, str, int]:
     return target.read_bytes(), content_type, 200
 
 
-def room_page(result: str = "", partial: bool = False) -> bytes:
+def room_page(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     latest_relic = state.latest_relic_text()
@@ -2023,7 +1894,7 @@ def room_page(result: str = "", partial: bool = False) -> bytes:
         <section class='deck-card' style='padding:12px'><h2>Relationship</h2><pre>{esc(nudge)}</pre><a class='ghost-button' href='/stash'>Open Stash</a></section>
       </div>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -2066,15 +1937,15 @@ def room_page(result: str = "", partial: bool = False) -> bytes:
   </div>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
-def route_page(path: str, partial: bool = False) -> bytes:
+def route_page(path: str, partial: bool = False, surface: str = "web") -> bytes:
     renderer = PAGE_RENDERERS.get(path, doorstep)
-    return renderer(partial=partial)
+    return renderer(partial=partial, surface=surface)
 
 
-def body_page(partial: bool = False) -> bytes:
+def body_page(partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     words = body_words()
     deck = deck_page("/body", f"""
@@ -2097,7 +1968,7 @@ def body_page(partial: bool = False) -> bytes:
         <div class='service-pill'><span>relics</span><b>{len(state.relics)} traces</b></div>
       </div>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -2121,10 +1992,10 @@ def body_page(partial: bool = False) -> bytes:
   <details class='page-card' style='margin-top:12px'><summary>Advanced details</summary><pre>{esc(pocket_soul.body_text())}</pre></details>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
-def memory_page(partial: bool = False) -> bytes:
+def memory_page(partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     memories = state.memories[-12:]
     memory_lines = "\n".join(f"- {item}" for item in memories) or "It has not clearly remembered anything yet."
@@ -2147,7 +2018,7 @@ def memory_page(partial: bool = False) -> bytes:
         <pre>{esc(relic_lines)}</pre>
       </div>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -2162,10 +2033,10 @@ def memory_page(partial: bool = False) -> bytes:
   </div>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
-def stash_page(partial: bool = False) -> bytes:
+def stash_page(partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     stash_text = state.stash_view(12)
     deck = deck_page("/stash", f"""
@@ -2185,7 +2056,7 @@ def stash_page(partial: bool = False) -> bytes:
         {stash_html(state, 12, True)}
       </div>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -2198,10 +2069,10 @@ def stash_page(partial: bool = False) -> bytes:
   </div>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
-def badges_page(partial: bool = False) -> bytes:
+def badges_page(partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     badge_text = state.badges_view()
     lit = sum(1 for _name, _note, unlocked in state.badge_rows() if unlocked)
@@ -2216,7 +2087,7 @@ def badges_page(partial: bool = False) -> bytes:
         {badges_html(state)}
       </div>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -2229,10 +2100,10 @@ def badges_page(partial: bool = False) -> bytes:
   </div>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
-def ritual_page(result: str = "", partial: bool = False) -> bytes:
+def ritual_page(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     deck = deck_page("/ritual", f"""
     <section class='deck-card overview-panel ritual-mini'>
@@ -2247,7 +2118,7 @@ def ritual_page(result: str = "", partial: bool = False) -> bytes:
       </div>
       <pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
     content = f"""
@@ -2265,10 +2136,10 @@ def ritual_page(result: str = "", partial: bool = False) -> bytes:
   <section class='page-card result' style='margin-top:12px'><h2>Ritual Echo</h2><pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre></section>
 </section>
 """
-    return page(content)
+    return page(content, surface)
 
 
-def settings_page(partial: bool = False) -> bytes:
+def settings_page(partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.SoulState.load()
     words = body_words()
     service = "online" if words.get("presence") == "reachable" else "offline"
@@ -2290,10 +2161,10 @@ network: {esc(words['net'])}
 uptime: {esc(words['uptime'])}
 mode: WalnutPi body first</pre></div>
     </section>
-""", partial)
+""", partial, surface)
     if deck:
         return deck
-    return page(f"{nav('/settings')}<section class='room-page with-art'><h1>Settings</h1><p class='small'>local device</p><pre>web room: {esc(service)}\nrelic count: {len(state.relics)}\nnetwork: {esc(words['net'])}</pre></section>")
+    return page(f"{nav('/settings')}<section class='room-page with-art'><h1>Settings</h1><p class='small'>local device</p><pre>web room: {esc(service)}\nrelic count: {len(state.relics)}\nnetwork: {esc(words['net'])}</pre></section>", surface)
 
 
 PAGE_RENDERERS = {
@@ -2338,7 +2209,7 @@ class Handler(BaseHTTPRequestHandler):
     def _resolve_get(self, include_body: bool = True) -> WebResponse:
         parsed = urlparse(self.path)
         ctx = RequestContext(parsed.path, parse_qs(parsed.query))
-        path = ctx.path
+        surface, path = normalize_surface_path(ctx.path)
         if path.startswith("/asset/"):
             body, content_type, status = asset_response(path)
             cache = "public, max-age=86400" if status == 200 else ""
@@ -2449,13 +2320,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/bridge-flash":
             return WebResponse(latest_flash().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path in SHELL_PATHS:
-            return WebResponse(route_page(path, partial=ctx.partial) if include_body else b"")
-        return WebResponse(doorstep() if include_body else b"")
+            return WebResponse(route_page(path, partial=ctx.partial, surface=surface) if include_body else b"")
+        return WebResponse(doorstep(surface=surface) if include_body else b"")
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
         data = parse_qs(self.rfile.read(length).decode("utf-8"))
-        path = urlparse(self.path).path
+        _surface, path = normalize_surface_path(urlparse(self.path).path)
         if path == "/api/bridge-flash":
             wish = data.get("wish", [""])[0].strip()
             body = flash_payload(wish)

@@ -1,0 +1,203 @@
+/* 480x320 board surface: no sidebar, no large decorative panels. */
+.surface-board main {
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.board-page {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 44px;
+  border: 0;
+  background: #06080c;
+  overflow: hidden;
+}
+
+.board-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.board-nav {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  border-top: 1px solid #22344d;
+  background: #05070a;
+}
+
+.board-nav .nav-item {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: #08101a;
+}
+
+.board-nav .nav-item.is-active {
+  background: #24180c;
+  color: #f0c66d;
+  box-shadow: inset 0 2px 0 #f0c66d;
+}
+
+.board-nav .nav-label {
+  display: none;
+}
+
+.surface-board .screen,
+.surface-board .overview-panel {
+  width: 100vw;
+  height: calc(100vh - 44px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.surface-board .home-screen .home-copy {
+  padding: 10px 12px 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.surface-board .home-screen h1 {
+  font-size: 21px;
+  line-height: 1.04;
+  margin-bottom: 8px;
+}
+
+.surface-board .speech,
+.surface-board .presence-line,
+.surface-board .today-turn {
+  width: min(292px, calc(100vw - 24px));
+  max-width: none;
+}
+
+.surface-board .speech {
+  max-height: 58px;
+  padding: 8px;
+  font-size: 10px;
+}
+
+.surface-board .presence-line {
+  margin-top: 7px;
+  max-height: 40px;
+  padding: 7px;
+  font-size: 10px;
+}
+
+.surface-board .today-turn {
+  margin-top: 7px;
+  padding: 8px;
+  gap: 5px;
+}
+
+.surface-board .today-turn small:nth-of-type(2),
+.surface-board .soul-dock,
+.surface-board .relic-dock,
+.surface-board .screen-content[style*="position:absolute"] {
+  display: none !important;
+}
+
+.surface-board .door-action {
+  left: auto !important;
+  right: 10px;
+  bottom: 54px !important;
+  margin: 0 !important;
+}
+
+.surface-board .door-action button {
+  width: 150px;
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.surface-board .room-head {
+  padding: 8px 10px;
+}
+
+.surface-board .room-bubble {
+  top: 42px;
+  right: 8px;
+  width: 154px;
+  max-height: 58px;
+  padding: 7px;
+  font-size: 10px;
+}
+
+.surface-board .room-screen img[alt='Pocket Soul robot'] {
+  width: 104px !important;
+  top: 42% !important;
+}
+
+.surface-board .room-bottom {
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: 42%;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  overflow: auto;
+}
+
+.surface-board .room-bottom > section:not(.primary-panel) {
+  display: none;
+}
+
+.surface-board .memory-mini,
+.surface-board .body-mini,
+.surface-board .ritual-mini,
+.surface-board .settings-mini {
+  grid-template-columns: 1fr;
+  padding: 12px;
+  overflow: auto;
+}
+
+.surface-board .memory-mini > div,
+.surface-board .settings-mini > div {
+  padding: 0;
+  border: 0;
+}
+
+.surface-board .memory-mini > div + div {
+  display: none;
+}
+
+.surface-board .shelf-card {
+  display: block;
+}
+
+.surface-board .shelf-card > div:last-child {
+  display: none;
+}
+
+.surface-board .ritual-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.surface-board .ritual-card {
+  min-height: 112px;
+  padding: 10px;
+}
+
+.surface-board .ritual-card input {
+  display: none;
+}
+
+.surface-board .theme-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.surface-board .codex-terminal {
+  min-height: 0;
+  max-height: 150px;
+  overflow: auto;
+  padding: 10px;
+  font-size: 11px;
+}

@@ -17,7 +17,6 @@ HOST = "0.0.0.0"
 PORT = 8787
 ACTION_LOCK = threading.Lock()
 ASSET_DIR = Path(__file__).resolve().parent / "asset"
-HOME_SNAPSHOT = ASSET_DIR / "snapshots" / "original-home.html"
 
 STYLE = """
 :root {
@@ -241,13 +240,834 @@ textarea:focus, input:focus { outline: 1px solid var(--lamp); }
 }
 @keyframes breathe {
   0%, 100% { transform: translateY(0); box-shadow: inset 0 0 24px #9fd3a618, 0 0 18px #f0c66d0c; }
-  50% { transform: translateY(-2px); box-shadow: inset 0 0 40px #9fd3a632, 0 0 34px #f0c66d20; }
+  50% { transform: translateY(0); box-shadow: inset 0 0 24px #9fd3a618, 0 0 18px #f0c66d0c; }
+}
+/* Calm web room: no decorative motion; data changes are the movement. */
+*, *:before, *:after { animation: none !important; transition: none !important; }
+.home-quest { display: none !important; }
+.home-status {
+  display: inline-block;
+  max-width: 300px;
+  padding: 9px 11px;
+  border: 1px solid #253650;
+  border-radius: 7px;
+  background: #0d1320dd;
+  color: #b9ab95;
+  font-size: 12px;
+}
+.home-status p { margin: 0; }
+.speech, .room-bubble, [data-live='result'], .room-bottom pre {
+  max-height: 96px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.room-bottom [data-live='result'] { max-height: 78px; }
+.round-tools form { min-width: 0; }
+.round-tools .icon-button {
+  width: 100%;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0;
+}
+.round-tools .icon-button svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.stash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+.stash-item {
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid #2d4057;
+  border-radius: 7px;
+  background: #0c1320e6;
+}
+.stash-item b { display: block; color: #f0c66d; font-size: 13px; }
+.stash-item span { display: block; color: #7f8aa0; font-size: 11px; margin-bottom: 5px; }
+.stash-item p { color: #b9ab95; font-size: 12px; margin: 0; }
+.stash-item button {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.badge-wall { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 8px; }
+.badge-tile {
+  min-height: 88px;
+  padding: 10px;
+  border: 1px solid #27354b;
+  border-radius: 7px;
+  background: #0b111c;
+  color: #6f7a8d;
+}
+.badge-tile.is-lit {
+  border-color: #736138;
+  background: #181407;
+  color: #efe8d0;
+  box-shadow: inset 0 0 22px #f0c66d18;
+}
+.badge-tile b { display: block; color: #f0c66d; font-size: 13px; }
+.badge-tile p { margin: 5px 0 0; font-size: 12px; }
+"""
+
+STYLE += """
+body {
+  height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 28% 0%, #23324955 0 1px, transparent 1px 100%),
+    radial-gradient(circle at 78% 12%, #32234a4a 0 180px, transparent 470px),
+    linear-gradient(180deg, #0b0c0f 0%, #060807 100%);
+}
+body.cockpit-page main {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+body.cockpit-page:after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px #ffffff10, inset 0 0 96px #000;
+  z-index: 20;
+}
+.deck-page {
+  width: min(1600px, calc(100vw - 28px));
+  height: min(860px, calc(100vh - 56px));
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #1e314f;
+  background: #060910;
+  box-shadow: 0 30px 90px #000d;
+}
+.sidebar {
+  min-width: 0;
+  padding: 28px 14px;
+  display: grid;
+  grid-template-rows: 190px 1fr;
+  gap: 28px;
+  border-right: 1px solid #17263d;
+  background:
+    linear-gradient(90deg, #ffffff07 0 1px, transparent 1px 100%),
+    linear-gradient(180deg, #0a0d12 0%, #050708 100%);
+}
+.brand-tile {
+  min-height: 0;
+  border: 0;
+  background: url('/asset/new_ui/logo.png') center / 180% auto no-repeat;
+  display: block;
+  text-indent: -9999px;
+}
+.side-nav {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.nav-item {
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #c9bda6;
+}
+.nav-item.is-active {
+  color: #ffd56d;
+  border-color: #a46a1d;
+  background: linear-gradient(90deg, #4a3115 0%, #251910 100%);
+  box-shadow: inset 3px 0 0 #f0b84b, inset 0 1px 0 #ffffff12;
+}
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: #f5c75b;
+}
+.nav-icon svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.nav-label strong {
+  display: block;
+  font-size: 15px;
+  font-weight: normal;
+}
+.nav-label span { display: none; }
+.deck-main {
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #101827 0%, #080d16 100%),
+    repeating-linear-gradient(180deg, #ffffff06 0 1px, transparent 1px 5px);
+}
+.deck-card {
+  border: 1px solid #243755;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #111827ef 0%, #0a101bee 100%);
+  box-shadow: inset 0 1px 0 #ffffff12, 0 14px 32px #0008;
+}
+.screen,
+.overview-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 0;
+}
+.asset-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  image-rendering: auto;
+}
+.asset-bg:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, #060912f4 0 30%, #060912a8 49%, #0609122b 100%),
+    linear-gradient(180deg, #02050a88 0%, #02050a20 45%, #02050ab0 100%);
+}
+.screen-content,
+.room-head,
+.room-bubble,
+.room-bottom,
+.overview-panel > * {
+  position: relative;
+  z-index: 1;
+}
+.home-screen .home-copy {
+  padding: clamp(44px, 7vh, 86px) 0 0 clamp(42px, 7vw, 116px);
+  max-width: 680px;
+}
+.home-screen h1 {
+  margin: 0;
+  font-size: clamp(34px, 5vh, 54px);
+  line-height: 1.1;
+  color: #fff2d8;
+  text-shadow: 0 2px 0 #000;
+}
+.speech,
+.room-bubble {
+  display: inline-block;
+  max-width: 420px;
+  max-height: 118px;
+  margin: 34px 0 0;
+  padding: 16px 18px;
+  overflow: auto;
+  border: 1px solid #334766;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #121b2eea 0%, #0b121fea 100%);
+  color: #f3e9d2;
+  font-size: 15px;
+  line-height: 1.65;
+  box-shadow: 0 18px 30px #0009;
+}
+.heart { color: #ff6bb0; }
+.mini-vitals {
+  width: min(540px, calc(100vw - 320px));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 34px 0 12px;
+}
+.mini-tile {
+  min-height: 94px;
+  padding: 14px 16px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid #283d5d;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #141d31e8 0%, #0d1424e8 100%);
+  box-shadow: inset 0 1px 0 #ffffff12;
+}
+.mini-tile span,
+.label,
+.mini-sub {
+  color: #b5a88f;
+  font-size: 12px;
+}
+.mini-tile b {
+  color: #77ffa3;
+  font-weight: normal;
+  overflow-wrap: anywhere;
+}
+.home-status {
+  max-width: 330px;
+  border-color: #304562;
+  background: #101827e6;
+  color: #c8bda6;
+}
+.presence-line {
+  width: min(520px, calc(100vw - 340px));
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px solid #304562;
+  border-radius: 8px;
+  background: #101827d8;
+  color: #c8bda6;
+  line-height: 1.55;
+}
+.presence-line b {
+  color: #77ffa3;
+  font-weight: normal;
+}
+.soul-dock {
+  width: min(520px, calc(100vw - 340px));
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+.soul-dock .quick-input {
+  grid-template-columns: minmax(0, 1fr) 74px 74px;
+}
+.soul-dock .quick-input button {
+  min-height: 54px;
+  border-radius: 8px;
+  padding: 0;
+}
+.touch-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.touch-row form {
+  display: grid;
+  grid-template-columns: 1fr 112px;
+  gap: 10px;
+}
+.touch-row input {
+  height: 44px;
+  border-color: #2e4566;
+  border-radius: 8px;
+  background: #0d1524e8;
+}
+.touch-row button {
+  min-height: 44px;
+  border-radius: 999px;
+  padding: 0;
+}
+.conversation-note {
+  color: #8f9aac;
+  font-size: 12px;
+}
+.door-action {
+  position: absolute;
+  left: clamp(420px, 46vw, 760px);
+  bottom: clamp(48px, 9vh, 96px);
+  z-index: 2;
+  margin: 0 !important;
+}
+.door-action button {
+  width: 290px;
+  min-height: 68px;
+  border: 1px solid #7cdfad;
+  border-radius: 34px;
+  color: #071217;
+  background: linear-gradient(90deg, #79f0a5 0%, #6bd7cf 42%, #6c49d9 100%);
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 #ffffff80, 0 0 0 2px #6d45e040, 0 18px 30px #000a;
+}
+.eyebrow {
+  display: block;
+  margin-top: 4px;
+  color: #776e84;
+  font-size: 11px;
+}
+.room-screen .asset-bg {
+  height: 64%;
+}
+.room-screen .asset-bg:after {
+  background:
+    linear-gradient(180deg, #05070a10 0%, #05070a20 55%, #05070ae8 100%),
+    linear-gradient(90deg, #05070a5a 0%, transparent 48%, #05070a6c 100%);
+}
+.room-head {
+  padding: 28px 38px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+.room-head h1 {
+  margin-bottom: 6px;
+  font-size: 26px;
+}
+.room-bubble {
+  position: absolute;
+  top: 104px;
+  right: 54px;
+  width: 330px;
+  margin: 0;
+}
+.room-screen img[alt='Pocket Soul robot'] {
+  top: 56% !important;
+  width: min(360px, 30vw) !important;
+  filter: drop-shadow(0 22px 34px #000e) drop-shadow(0 0 18px #79ffd266) !important;
+}
+.room-bottom {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  height: 34%;
+  display: grid;
+  grid-template-columns: .92fr 1.12fr .78fr;
+  gap: 14px;
+}
+.room-bottom > .deck-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.room-bottom h2 {
+  color: #fff1ce;
+  font-size: 15px;
+}
+.room-bottom pre,
+[data-live='result'] {
+  max-height: 126px;
+  overflow: auto;
+  color: #cbbd9f;
+  line-height: 1.45;
+}
+.quick-input {
+  display: grid;
+  grid-template-columns: 1fr 58px;
+  gap: 10px;
+}
+.quick-input input {
+  height: 54px;
+  border-color: #2e4566;
+  border-radius: 8px;
+  background: #0d1524e8;
+}
+.quick-input button,
+.round-tools button,
+.ritual-card button {
+  color: #fff4d9;
+  border-color: #7f5bb1;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #7c52b8 0%, #563888 100%);
+}
+.round-tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+.round-tools .icon-button {
+  min-height: 48px;
+  border-radius: 999px;
+}
+.ghost-button,
+.soft-button {
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #29405f;
+  border-radius: 8px;
+  background: #0d1524e6;
+  color: #d3c5aa;
+  padding: 0 14px;
+}
+.overview-panel {
+  padding: 28px 34px;
+}
+.body-mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  gap: 34px;
+  background:
+    radial-gradient(circle at 50% 48%, #6b3fd333 0 120px, transparent 280px),
+    radial-gradient(circle at 50% 50%, #77f7cf13 0 210px, transparent 420px),
+    linear-gradient(180deg, #0e1625 0%, #080d16 100%);
+}
+.body-mini:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 49% 38%, #a06bffcc 0 2px, transparent 3px),
+    radial-gradient(circle at 42% 50%, #64d8ffcc 0 2px, transparent 3px),
+    radial-gradient(circle at 62% 31%, #d685ffcc 0 2px, transparent 3px);
+  opacity: .8;
+}
+.body-robot-img {
+  width: 340px !important;
+  filter: drop-shadow(0 0 28px #8357ff99) !important;
+}
+.body-service-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-self: end;
+}
+.service-pill {
+  min-height: 70px;
+  padding: 14px;
+  border: 1px solid #2a3e5e;
+  border-radius: 8px;
+  background: #0b121fe8;
+}
+.service-pill span { color: #8f9aac; font-size: 11px; }
+.service-pill b { display: block; margin-top: 8px; color: #77ffa3; }
+.body-stat {
+  padding: 18px 0;
+  border-top: 1px solid #2a3d5a;
+  color: #cfc2ad;
+}
+.body-stat b {
+  display: block;
+  margin-top: 4px;
+  color: #fff1d2;
+  font-size: 18px;
+}
+.body-stat small {
+  display: block;
+  margin-top: 6px;
+  color: #8f9aac;
+}
+.memory-mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+  gap: 0;
+  background:
+    radial-gradient(circle at 74% 48%, #6d3df042 0 120px, transparent 330px),
+    linear-gradient(180deg, #0e1625 0%, #080d16 100%);
+}
+.memory-mini > div {
+  padding: 28px;
+  min-width: 0;
+}
+.memory-mini > div:first-child {
+  border-right: 1px solid #263852;
+}
+.memory-mini pre {
+  color: #cbbd9f;
+  font-size: 18px;
+  line-height: 1.35;
+}
+.constellation {
+  height: 62%;
+  min-height: 260px;
+  margin-bottom: 12px;
+  border: 1px solid #2a3f60;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 50%, #b276ffcc 0 13px, #6a33d6bb 14px 35px, transparent 36px),
+    radial-gradient(circle at 30% 34%, #64d8ffaa 0 10px, transparent 11px),
+    radial-gradient(circle at 72% 28%, #9b57ffbb 0 11px, transparent 12px),
+    radial-gradient(circle at 66% 72%, #64d8ffbb 0 12px, transparent 13px),
+    radial-gradient(circle at 38% 76%, #f07b49aa 0 10px, transparent 11px),
+    linear-gradient(26deg, transparent 0 47%, #7450c988 48% 49%, transparent 50%),
+    linear-gradient(140deg, transparent 0 41%, #64d8ff77 42% 43%, transparent 44%),
+    #070b16;
+}
+.ritual-mini,
+.settings-mini {
+  background: linear-gradient(180deg, #0e1625 0%, #080d16 100%);
+}
+.mini-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.mini-header h2 {
+  color: #fff1ce;
+  font-size: 22px;
+}
+.ritual-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 22px;
+}
+.ritual-card {
+  min-height: 244px;
+  padding: 18px;
+  display: grid;
+  align-content: space-between;
+  border: 1px solid #2a3e5e;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #151e32 0%, #0b121f 100%);
+}
+.ritual-log {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 14px;
+}
+.ritual-log > section {
+  min-height: 190px;
+  padding: 16px;
+  border: 1px solid #2a3e5e;
+  border-radius: 8px;
+  background: #0b121fe8;
+}
+.ritual-log pre {
+  max-height: 140px;
+  overflow: auto;
+  color: #cbbd9f;
+}
+.streak-card {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.streak-card b {
+  color: #fff1ce;
+  font-size: 44px;
+}
+.ritual-card .big {
+  color: #f7cf62;
+  font-size: 40px;
+}
+.ritual-card input {
+  height: 46px;
+  border-color: #634826;
+  border-radius: 7px;
+  background: #141511;
+}
+.theme-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+}
+.theme-thumb {
+  height: 86px;
+  border: 1px solid #2b4264;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+}
+.theme-cyberdeck { background-image: url('/asset/ui/theme-cyberdeck.png'); }
+.theme-warm { background-image: url('/asset/ui/theme-warm.png'); }
+.theme-night { background-image: url('/asset/ui/theme-night.png'); }
+.theme-mono { background-image: url('/asset/ui/theme-mono.png'); }
+.codex-terminal {
+  margin-top: 14px;
+  min-height: 320px;
+  padding: 22px;
+  border: 1px solid #2a3e5e;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #060c12 0%, #03070b 100%);
+  color: #d0c0a0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.settings-panel {
+  min-height: 158px;
+  padding: 16px;
+  border: 1px solid #2a3e5e;
+  border-radius: 8px;
+  background: #0b121fe8;
+}
+.settings-panel h3 {
+  color: #fff1ce;
+  margin-bottom: 12px;
+}
+@media (max-width: 760px) {
+  .deck-page {
+    width: 100vw;
+    height: 100vh;
+    grid-template-columns: 72px minmax(0, 1fr);
+    border: 0;
+  }
+  .sidebar {
+    padding: 8px 6px;
+    grid-template-rows: 82px 1fr;
+    gap: 12px;
+  }
+  .brand-tile { background-size: 230% auto; }
+  .nav-item {
+    min-height: 42px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0;
+  }
+  .nav-label { display: none; }
+  .home-screen .home-copy {
+    padding: 18px 14px 0;
+  }
+  .home-screen h1 { font-size: 24px; }
+  .speech {
+    max-width: 240px;
+    margin-top: 12px;
+    padding: 10px;
+    font-size: 11px;
+  }
+  .mini-vitals {
+    width: 240px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .mini-tile {
+    min-height: 48px;
+    padding: 7px;
+    font-size: 10px;
+  }
+  .home-status { display: none; }
+  .presence-line {
+    width: 240px;
+    margin-top: 10px;
+    padding: 8px;
+    font-size: 11px;
+  }
+  .soul-dock {
+    width: 240px;
+    margin-top: 10px;
+  }
+  .soul-dock .quick-input,
+  .touch-row,
+  .touch-row form {
+    grid-template-columns: 1fr;
+  }
+  .door-action {
+    left: 14px;
+    bottom: 12px;
+  }
+  .door-action button {
+    width: 210px;
+    min-height: 48px;
+    font-size: 14px;
+  }
+  .room-head { padding: 12px; }
+  .room-bubble { top: 58px; right: 10px; width: 190px; font-size: 10px; }
+  .room-screen img[alt='Pocket Soul robot'] { width: 150px !important; }
+  .room-bottom {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    height: 45%;
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+  .body-mini,
+  .memory-mini {
+    grid-template-columns: 1fr;
+    gap: 0;
+    overflow: auto;
+  }
+  .body-service-strip,
+  .ritual-log,
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .body-robot-img { width: 150px !important; }
+  .ritual-row,
+  .theme-row {
+    grid-template-columns: 1fr;
+  }
+  .overview-panel { padding: 12px; overflow: auto; }
 }
 """
 
 
 def esc(value: object) -> str:
     return html.escape(str(value), quote=True)
+
+
+ICONS = {
+    "home": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M4 11.5 12 5l8 6.5'/><path d='M6.5 10.8V20h11v-9.2'/><path d='M9.5 20v-5.5h5V20'/></svg>",
+    "room": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M7 20V9l5-4 5 4v11'/><path d='M10 20v-6h4v6'/><path d='M4 20h16'/></svg>",
+    "body": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3.1A4.2 4.2 0 0 1 19 11c0 5.6-7 10-7 10Z'/></svg>",
+    "memory": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 6h14'/><path d='M5 11h14'/><path d='M5 16h14'/><path d='M5 21h14'/></svg>",
+    "ritual": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3v5'/><path d='M8.5 8h7'/><path d='m9.5 11-2 9h9l-2-9'/><path d='M9 16h6'/></svg>",
+    "grid": "<svg viewBox='0 0 24 24' aria-hidden='true'><rect x='4' y='4' width='6' height='6' rx='1'/><rect x='14' y='4' width='6' height='6' rx='1'/><rect x='4' y='14' width='6' height='6' rx='1'/><rect x='14' y='14' width='6' height='6' rx='1'/></svg>",
+    "knock": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3.1A4.2 4.2 0 0 1 19 11c0 5.6-7 10-7 10Z'/></svg>",
+    "hunt": "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='11' cy='11' r='6'/><path d='m16 16 4 4'/><path d='M11 8v6M8 11h6'/></svg>",
+    "wheel": "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='2'/><path d='M12 4v6M12 14v6M4 12h6M14 12h6M6.3 6.3l4.2 4.2M13.5 13.5l4.2 4.2M17.7 6.3l-4.2 4.2M10.5 13.5l-4.2 4.2'/></svg>",
+    "nudge": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 12h12'/><path d='m13 8 4 4-4 4'/><path d='M5 6h5M5 18h5'/></svg>",
+    "craft": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M14.7 6.3 17.7 3.3a2.1 2.1 0 0 1 3 3l-3 3'/><path d='M4 20l6.6-6.6'/><path d='m7 17 10-10'/><path d='M3 21l5-1 11-11-4-4L4 16z'/></svg>",
+    "quest": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 12.5 10 17 19 7'/><path d='M4 5h16v16H4z'/></svg>",
+    "postcard": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M4 6h16v12H4z'/><path d='m4 7 8 6 8-6'/></svg>",
+    "badge": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3 15 8l5 1-3.5 4 1 6-5.5-2.8L6.5 19l1-6L4 9l5-1z'/></svg>",
+    "settings": "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='3'/><path d='M12 2.8v3M12 18.2v3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M2.8 12h3M18.2 12h3M4.5 19.5l2.1-2.1M17.4 6.6l2.1-2.1'/></svg>",
+}
+
+
+def icon(name: str) -> str:
+    return ICONS.get(name, "")
+
+
+def stash_html(state: pocket_soul.SoulState, limit: int = 8, interactive: bool = False) -> str:
+    items = state.stash_items(limit)
+    if not items:
+        return "<p class='small'>Nothing on the shelf yet. Hunt first, then craft.</p>"
+    cards = []
+    for item in items:
+        kind = esc(item.get("kind", "?"))
+        title = esc(item.get("title", "?"))
+        note = esc(item.get("note", ""))
+        use_form = ""
+        if interactive:
+            raw_title = esc(item.get("title", ""))
+            use_form = f"<form method='post' action='/use' data-action='async'><input type='hidden' name='target' value='{raw_title}'><button>Use</button></form>"
+        cards.append(f"<article class='stash-item'><span>{kind}</span><b>{title}</b><p>{note}</p>{use_form}</article>")
+    return "<div class='stash-grid'>" + "".join(cards) + "</div>"
+
+
+def badges_html(state: pocket_soul.SoulState) -> str:
+    cards = []
+    for name, note, unlocked in state.badge_rows():
+        klass = "badge-tile is-lit" if unlocked else "badge-tile"
+        mark = "lit" if unlocked else "locked"
+        cards.append(f"<article class='{klass}'><span>{mark}</span><b>{esc(name)}</b><p>{esc(note)}</p></article>")
+    return "<div class='badge-wall'>" + "".join(cards) + "</div>"
+
+
+def nudge_preview(state: pocket_soul.SoulState) -> str:
+    old_reply = state.last_reply
+    try:
+        return state.next_play_nudge()
+    finally:
+        state.last_reply = old_reply
 
 
 def latest_log() -> str:
@@ -356,13 +1176,68 @@ def robot_image(state: pocket_soul.SoulState) -> str:
     return "/asset/new_ui/robot-curious.png"
 
 
+def room_voice(text: str) -> str:
+    """Turn raw logs/model transcripts into one present-tense room line."""
+    raw = (text or "").strip()
+    if not raw:
+        return "I am here. Say one real sentence, or knock softly."
+    if "No such file or directory" in raw or "did not answer" in raw:
+        return "I am here. My inner voice is quiet right now, but the room is still listening."
+    lines = [line.strip() for line in raw.replace("\r", "\n").splitlines() if line.strip()]
+    if lines and lines[0].upper().startswith("CHAT WINDOW"):
+        candidates: list[str] = []
+        for line in lines:
+            lower = line.lower()
+            if lower.startswith(("hermes:", "soul:", "pocket soul:")):
+                candidates.append(line.split(":", 1)[1].strip())
+        if candidates:
+            raw = candidates[-1]
+        else:
+            raw = lines[-1]
+    raw = raw.replace("/ask keeps talking Enter blinks", "").strip()
+    raw = raw.strip("* \n\t")
+    return raw or "I am here. Say one real sentence, or knock softly."
+
+
 def doorstep(result: str = "") -> bytes:
-    if not result and HOME_SNAPSHOT.is_file():
-        return HOME_SNAPSHOT.read_bytes()
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     words = body_words()
-    whisper = state.last_reply or "It is sitting in the little room, waiting for a soft knock."
+    whisper = room_voice(state.last_reply)
+    presence = f"Feeling {state.mood}. Body {words['temperature']}. The window is open. Today's thread: {state.quest_name}."
+    deck = deck_page("/", f"""
+    <section class='deck-card screen home-screen'>
+      <div class='asset-bg' style="background-image:url('/asset/ui/home-bg.png')"></div>
+      <div class='screen-content home-copy'>
+        <h1>Pocket Soul<br>is awake.</h1>
+        <div class='speech' data-live='latest'>{esc(whisper)}<br><span class='heart'>*</span></div>
+        <div class='presence-line' data-live='vitals'>{esc(presence)}</div>
+        <div class='soul-dock'>
+          <form class='quick-input' method='post' action='/ask' data-action='async'>
+            <input name='prompt' placeholder='Say one real sentence to Pocket Soul...'>
+            <button name='mode' value='council' title='Talk with Pocket Soul'>Talk</button>
+            <button name='mode' value='hermes' title='Hear the inner voice'>Inner</button>
+          </form>
+          <div class='touch-row'>
+            <form method='post' action='/bridge-flash' data-action='flash'>
+              <input name='wish' placeholder='Leave a small touch...'>
+              <button>Touch</button>
+            </form>
+            <span class='conversation-note' data-live='phase'>listening</span>
+          </div>
+        </div>
+      </div>
+      <form class='door-action screen-content' method='post' action='/doorbell' style='align-self:end; justify-self:center; margin-bottom:18px'>
+        <button>Knock Softly<br><span class='eyebrow'>Let it know you are here</span></button>
+      </form>
+      <div class='screen-content' style='position:absolute; right:22px; bottom:18px; color:#7f8aa0; font-size:11px'>
+        <span>room online</span> / <span data-live='stamp'>{esc(datetime.now().strftime('%H:%M:%S'))}</span>
+      </div>
+      {f"<pre class='screen-content' data-live='result' style='position:absolute; left:78px; right:78px; bottom:18px; max-height:88px; overflow:hidden'>{esc(result)}</pre>" if result else ""}
+    </section>
+""")
+    if deck:
+        return deck
     content = f"""
 <section class='doorstep'>
   <div class='threshold'>
@@ -399,9 +1274,22 @@ def doorstep(result: str = "") -> bytes:
 def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object]:
     state = state or pocket_soul.SoulState.load()
     words = body_words()
+    vitals_html = "".join(
+        [
+            f"<div class='mini-tile'><span>feeling</span><b>{esc(state.mood)}</b></div>",
+            f"<div class='mini-tile'><span>body</span><b>{esc(words['temperature'])}</b></div>",
+            f"<div class='mini-tile'><span>spirit</span><b>{esc(state.energy)}%</b></div>",
+            f"<div class='mini-tile'><span>window</span><b>{esc(words['window'])}</b></div>",
+        ]
+    )
+    presence = f"Feeling {state.mood}. Body {words['temperature']}. The window is open. Today's thread: {state.quest_name}."
     return {
         "vitals": f"{words['temperature']} / {words['window']} / {state.latest_relic_text()}",
+        "presence": presence,
+        "vitals_html": vitals_html,
         "latest": state.latest_relic_text(),
+        "reply": room_voice(state.last_reply),
+        "mood": state.mood,
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "relic_count": len(state.relics),
     }
@@ -499,15 +1387,11 @@ const PHASES = {
   '/remember': ['holding memory', 'writing state', 'lighting relic']
 };
 function setThinking(active, text) {
-  document.body.classList.toggle('thinking', active);
   const phase = document.querySelector("[data-live='phase']");
   if (phase) phase.textContent = text || '';
 }
 function wakeRoom() {
-  document.body.classList.remove('waking');
-  void document.body.offsetWidth;
-  document.body.classList.add('waking');
-  window.setTimeout(() => document.body.classList.remove('waking'), 950);
+  // Keep web calm: data updates only, no decorative motion.
 }
 function phaseTicker(path) {
   const phases = PHASES[path] || ['waking', 'thinking', 'writing trace'];
@@ -521,16 +1405,19 @@ function phaseTicker(path) {
 async function refreshVitals() {
   const box = document.querySelector("[data-live='vitals']");
   const stamp = document.querySelector("[data-live='stamp']");
-  if (!box) return;
+  const latest = document.querySelector("[data-live='latest']");
+  const mood = document.querySelector("[data-live='mood']");
   try {
     const res = await fetch('/api/live', {cache: 'no-store'});
     if (!res.ok) return;
     const data = await res.json();
-    box.innerHTML = data.vitals;
+    if (box) box.innerHTML = box.classList.contains('mini-vitals') && data.vitals_html ? data.vitals_html : (data.presence || data.vitals);
+    if (latest && (data.reply || data.latest)) latest.innerHTML = (data.reply || data.latest).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '<br><span class="heart">*</span>';
+    if (mood && data.mood) mood.textContent = data.mood;
     if (stamp) stamp.textContent = data.time;
   } catch (_) {}
 }
-setInterval(refreshVitals, 15000);
+setInterval(refreshVitals, 7000);
 async function submitFlash(form) {
   wakeRoom();
   const resultBox = document.querySelector("[data-live='result']");
@@ -601,29 +1488,43 @@ def page(content: str) -> bytes:
 
 
 def deck_page(path: str, inner: str) -> bytes | None:
-    if not HOME_SNAPSHOT.is_file():
-        return None
-    text = HOME_SNAPSHOT.read_text(encoding="utf-8")
     page_class = {
         "/": "deck-home",
         "/room": "deck-room",
         "/body": "deck-body",
         "/memory": "deck-memory",
+        "/stash": "deck-memory",
+        "/badges": "deck-memory",
         "/ritual": "deck-ritual",
         "/settings": "deck-settings",
     }.get(path, "deck-home")
-    text = text.replace("<section class='deck-page deck-home'>", f"<section class='deck-page {page_class}'>", 1)
-    for href in ["/", "/room", "/body", "/memory", "/ritual", "/settings"]:
-        text = text.replace(f"<a class='nav-item is-active' href='{href}'", f"<a class='nav-item' href='{href}'")
-    text = text.replace(f"<a class='nav-item' href='{path}'", f"<a class='nav-item is-active' href='{path}'", 1)
-    start_tag = "  <div class='deck-main'>"
-    end_tag = "\n  </div>\n</section>\n</main>"
-    try:
-        start = text.index(start_tag) + len(start_tag)
-        end = text.index(end_tag)
-    except ValueError:
-        return None
-    return (text[:start] + "\n" + inner + text[end:]).encode()
+    nav_items = [
+        ("/", "home", "Home"),
+        ("/room", "room", "Room"),
+        ("/body", "body", "Body"),
+        ("/memory", "memory", "Memory"),
+        ("/stash", "grid", "Stash"),
+        ("/ritual", "ritual", "Ritual"),
+        ("/settings", "settings", "Settings"),
+    ]
+    nav_html = "".join(
+        f"<a class='nav-item{' is-active' if href == path else ''}' href='{href}'>"
+        f"<span class='nav-icon'>{icon(name)}</span>"
+        f"<span class='nav-label'><strong>{label}</strong></span></a>"
+        for href, name, label in nav_items
+    )
+    html_doc = f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{STYLE}</style></head><body class='cockpit-page'><main>
+<section class='deck-page {page_class}'>
+  <aside class='sidebar'>
+    <a class='brand-tile' href='/'>Pocket Soul</a>
+    <nav class='side-nav'>{nav_html}</nav>
+  </aside>
+  <div class='deck-main'>
+{inner}
+  </div>
+</section>
+</main>{SCRIPT}</body></html>"""
+    return html_doc.encode()
 
 
 def asset_response(path: str) -> tuple[bytes, str, int]:
@@ -645,26 +1546,34 @@ def room_page(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
     state.ensure_daily_quest()
     latest_relic = state.latest_relic_text()
-    memories = "\n".join(f"- {m}" for m in state.memories[-5:]) or "The drawer is still empty."
+    stash = state.stash_view(4)
+    nudge = nudge_preview(state)
+    daily = state.daily_view()
     relics = state.relic_shelf(5)
+    reply = room_voice(state.last_reply)
     deck = deck_page("/room", f"""
-    <div class='deck-kicker'><b>02</b><strong>ROOM / INNER</strong></div>
     <section class='deck-card screen room-screen'>
       <div class='asset-bg' style="background-image:url('/asset/ui/room-bg.png')"></div>
       <div class='room-head'>
-        <div><h1>Pocket Soul</h1><p class='small'>mood: {esc(state.mood)}</p></div>
+        <div><h1>Pocket Soul</h1><p class='small'>It is listening from the room.</p></div>
         <div><a class='ghost-button' href='/body'>Body</a></div>
       </div>
-      <div class='room-bubble'>{esc(state.last_reply or 'You came in. The little room is lit.')}<br><span class='heart'>*</span></div>
+      <div class='room-bubble'>{esc(reply)}<br><span class='heart'>*</span></div>
       <img src='{robot_image(state)}' alt='Pocket Soul robot' style='position:absolute; left:50%; top:56%; width:min(340px,42vw); max-height:300px; object-fit:contain; transform:translate(-50%,-50%); filter:drop-shadow(0 20px 34px #000c) drop-shadow(0 0 22px #8b4dff66); pointer-events:none'>
       <div class='room-bottom'>
-        <section class='deck-card' style='padding:12px'><h2>Today</h2><pre>{esc(relics)}</pre><a class='ghost-button' href='/memory'>More</a></section>
+        <section class='deck-card' style='padding:12px'><h2>Daily</h2><pre>{esc(daily)}</pre><form method='post' action='/daily' data-action='async'><button class='ghost-button' name='action' value='claim'>Claim</button></form></section>
         <section class='deck-card' style='padding:12px'>
-          <form class='quick-input' method='post' action='/ask' data-action='async'><input name='prompt' placeholder='Leave a sentence at the door...'><button name='mode' value='council'>-></button></form>
-          <div class='round-tools'><button name='kind' value='wake'>♡</button><button>▣</button><button>✉</button><button>⚙</button></div>
+          <form class='quick-input' method='post' action='/ask' data-action='async'><input name='prompt' placeholder='Tell Pocket Soul what is happening...'><button name='mode' value='council'>Talk</button></form>
+          <div class='round-tools'>
+            <form method='post' action='/doorbell' data-action='async'><button class='icon-button' aria-label='Knock' title='Knock'>{icon('knock')}</button></form>
+            <form method='post' action='/nudge' data-action='async'><button class='icon-button' aria-label='Nudge' title='Nudge'>{icon('nudge')}</button></form>
+            <form method='post' action='/hunt' data-action='async'><button class='icon-button' aria-label='Hunt' title='Hunt'>{icon('hunt')}</button></form>
+            <form method='post' action='/wheel' data-action='async'><button class='icon-button' aria-label='Wheel' title='Wheel'>{icon('wheel')}</button></form>
+            <form method='post' action='/craft' data-action='async'><button class='icon-button' aria-label='Craft' title='Craft'>{icon('craft')}</button></form>
+          </div>
           <pre data-live='result'>{esc(result or latest_relic)}</pre>
         </section>
-        <section class='deck-card' style='padding:12px'><h2>Small Objects</h2><pre>{esc(memories)}</pre></section>
+        <section class='deck-card' style='padding:12px'><h2>Relationship</h2><pre>{esc(nudge)}</pre><a class='ghost-button' href='/stash'>Open Stash</a></section>
       </div>
     </section>
 """)
@@ -714,20 +1623,26 @@ def room_page(result: str = "") -> bytes:
 
 
 def body_page() -> bytes:
+    state = pocket_soul.SoulState.load()
     words = body_words()
     deck = deck_page("/body", f"""
-    <div class='deck-kicker'><b>03</b><strong>BODY / VITALS</strong></div>
     <section class='deck-card overview-panel body-mini'>
       <div style='min-width:0'>
         <div class='body-stat'><span>temperature</span><b>{esc(words['temperature'])}</b><small>{esc(words['raw_temp'])}</small></div>
         <div class='body-stat'><span>heartbeat</span><b>steady</b><small>load {esc(words['load'])}</small></div>
         <div class='body-stat'><span>window</span><b>{esc(words['window'])}</b><small>{esc(words['net'])}</small></div>
       </div>
-      <img class='body-robot-img' src='/asset/new_ui/robot.png' alt='Pocket Soul body' style='width:150px; max-width:100%; align-self:center; justify-self:center; image-rendering:auto; filter:drop-shadow(0 0 18px #8b4dff8c)'>
+      <img class='body-robot-img' src='{robot_image(state)}' alt='Pocket Soul body' style='width:150px; max-width:100%; align-self:center; justify-self:center; image-rendering:auto; filter:drop-shadow(0 0 18px #8b4dff8c)'>
       <div style='min-width:0'>
         <div class='body-stat'><span>presence</span><b>{esc(words['presence'])}</b><small>local room</small></div>
         <div class='body-stat'><span>uptime</span><b>{esc(words['spirit'])}</b><small>{esc(words['uptime'])}</small></div>
         <div class='body-stat'><span>disk</span><b>{esc(words['disk'])}</b><small>storage body</small></div>
+      </div>
+      <div class='body-service-strip'>
+        <div class='service-pill'><span>inner voice</span><b>listening</b></div>
+        <div class='service-pill'><span>web room</span><b>open</b></div>
+        <div class='service-pill'><span>memory</span><b>{len(state.memories)} kept</b></div>
+        <div class='service-pill'><span>relics</span><b>{len(state.relics)} traces</b></div>
       </div>
     </section>
 """)
@@ -766,13 +1681,12 @@ def memory_page() -> bytes:
         for item in state.relics[-10:][::-1]
     ) or "No relics yet."
     deck = deck_page("/memory", f"""
-    <div class='deck-kicker'><b>04</b><strong>MEMORY / LOG</strong></div>
     <section class='deck-card overview-panel memory-mini'>
       <div>
-        <div class='mini-header'><h2>Memory Drawer</h2><span class='mini-sub'>latest knock</span></div>
+        <div class='mini-header'><h2>Memory Drawer</h2></div>
         <p>{esc(state.last_visit or 'No one has visited yet.')}</p>
-        <pre>{esc(state.last_reply)}</pre>
-        <form class='quick-input' method='post' action='/remember'><input name='memory' placeholder='Remember this...'><button>+</button></form>
+        <pre>{esc(room_voice(state.last_reply))}</pre>
+        <form class='quick-input' method='post' action='/remember' data-action='async'><input name='memory' placeholder='Remember this...'><button>+</button></form>
       </div>
       <div>
         <div class='constellation'></div>
@@ -798,19 +1712,84 @@ def memory_page() -> bytes:
     return page(content)
 
 
+def stash_page() -> bytes:
+    state = pocket_soul.SoulState.load()
+    stash_text = state.stash_view(12)
+    deck = deck_page("/stash", f"""
+    <section class='deck-card overview-panel memory-mini'>
+      <div>
+        <div class='mini-header'><h2>Pocket Stash</h2><span class='mini-sub'>spark {esc(state.spark)} / streak {esc(state.hunt_streak)}</span></div>
+        <pre>{esc(stash_text)}</pre>
+        <div class='round-tools' style='margin-top:10px'>
+          <form method='post' action='/hunt' data-action='async'><button class='icon-button' aria-label='Hunt' title='Hunt'>{icon('hunt')}</button></form>
+          <form method='post' action='/wheel' data-action='async'><button class='icon-button' aria-label='Wheel' title='Wheel'>{icon('wheel')}</button></form>
+          <form method='post' action='/craft' data-action='async'><button class='icon-button' aria-label='Craft' title='Craft'>{icon('craft')}</button></form>
+        </div>
+        <pre data-live='result'></pre>
+      </div>
+      <div>
+        {stash_html(state, 12, True)}
+      </div>
+    </section>
+""")
+    if deck:
+        return deck
+    content = f"""
+{nav('/stash')}
+<section class='room-page with-art'>
+  <div class='room-title'><div><h1>Pocket Stash</h1><p class='small'>spark {esc(state.spark)} / streak {esc(state.hunt_streak)}</p></div><a href='/room'>Enter room</a></div>
+  <div class='grid'>
+    <section class='page-card'><h2>Shelf</h2><pre>{esc(stash_text)}</pre></section>
+    <section class='page-card'><h2>Objects</h2>{stash_html(state, 12, True)}</section>
+  </div>
+</section>
+"""
+    return page(content)
+
+
+def badges_page() -> bytes:
+    state = pocket_soul.SoulState.load()
+    badge_text = state.badges_view()
+    lit = sum(1 for _name, _note, unlocked in state.badge_rows() if unlocked)
+    total = len(state.badge_rows())
+    deck = deck_page("/badges", f"""
+    <section class='deck-card overview-panel memory-mini'>
+      <div>
+        <div class='mini-header'><h2>Badge Wall</h2><span class='mini-sub'>{lit}/{total} lit</span></div>
+        <pre>{esc(badge_text)}</pre>
+      </div>
+      <div>
+        {badges_html(state)}
+      </div>
+    </section>
+""")
+    if deck:
+        return deck
+    content = f"""
+{nav('/badges')}
+<section class='room-page with-art'>
+  <div class='room-title'><div><h1>Badge Wall</h1><p class='small'>{lit}/{total} lit</p></div><a href='/room'>Enter room</a></div>
+  <div class='grid'>
+    <section class='page-card'><h2>Wall</h2><pre>{esc(badge_text)}</pre></section>
+    <section class='page-card'><h2>Badges</h2>{badges_html(state)}</section>
+  </div>
+</section>
+"""
+    return page(content)
+
+
 def ritual_page(result: str = "") -> bytes:
     state = pocket_soul.SoulState.load()
     deck = deck_page("/ritual", f"""
-    <div class='deck-kicker'><b>05</b><strong>RITUAL / DAILY</strong></div>
     <section class='deck-card overview-panel ritual-mini'>
       <div class='mini-header'><h2>Rituals</h2><span class='mini-sub'>{esc(state.quest_name)}</span></div>
       <p>{esc(state.quest_prompt)}</p>
       <div class='ritual-row'>
-        <form class='ritual-card' method='post' action='/ritual'><div class='big'>♡</div><h2>Wake</h2><button name='kind' value='wake'>Run</button></form>
-        <form class='ritual-card' method='post' action='/bridge-flash'><div class='big'>✦</div><h2>Flash</h2><input name='wish' placeholder='A small touch'><button>Run</button></form>
-        <form class='ritual-card' method='post' action='/quest'><div class='big'>✓</div><h2>Quest</h2><button name='action' value='complete'>Complete</button></form>
-        <form class='ritual-card' method='post' action='/postcard'><div class='big'>✉</div><h2>Postcard</h2><input name='title' placeholder='Title'><button>Write</button></form>
-        <form class='ritual-card' method='post' action='/bottle'><div class='big'>⌁</div><h2>Bottle</h2><input name='wish' placeholder='Future visitor'><button>Place</button></form>
+        <form class='ritual-card' method='post' action='/ritual' data-action='async'><div class='big'>♡</div><h2>Wake</h2><button name='kind' value='wake'>Run</button></form>
+        <form class='ritual-card' method='post' action='/bridge-flash' data-action='flash'><div class='big'>✦</div><h2>Flash</h2><input name='wish' placeholder='A small touch'><button>Run</button></form>
+        <form class='ritual-card' method='post' action='/quest' data-action='async'><div class='big'>✓</div><h2>Quest</h2><button name='action' value='complete'>Complete</button></form>
+        <form class='ritual-card' method='post' action='/postcard' data-action='async'><div class='big'>✉</div><h2>Postcard</h2><input name='title' placeholder='Title'><button>Write</button></form>
+        <form class='ritual-card' method='post' action='/bottle' data-action='async'><div class='big'>⌁</div><h2>Bottle</h2><input name='wish' placeholder='Future visitor'><button>Place</button></form>
       </div>
       <pre data-live='result'>{esc(result or 'No new ritual yet.')}</pre>
     </section>
@@ -836,26 +1815,31 @@ def ritual_page(result: str = "") -> bytes:
 
 
 def settings_page() -> bytes:
-    deck = deck_page("/settings", """
-    <div class='deck-kicker'><b>06</b><strong>SETTINGS / SYSTEM</strong></div>
+    state = pocket_soul.SoulState.load()
+    words = body_words()
+    service = "online" if words.get("presence") == "reachable" else "offline"
+    deck = deck_page("/settings", f"""
     <section class='deck-card overview-panel settings-mini'>
-      <div class='mini-header'><h2>Settings</h2><span class='mini-sub'>local device</span></div>
-      <p>Theme boards, local services, and the room's tiny operating surface.</p>
+      <div class='mini-header'><h2>Settings</h2></div>
+      <p>Runtime view of the WalnutPi body and local web room.</p>
       <div class='theme-row'>
         <span class='theme-thumb theme-cyberdeck'></span>
         <span class='theme-thumb theme-warm'></span>
         <span class='theme-thumb theme-night'></span>
         <span class='theme-thumb theme-mono'></span>
       </div>
-      <div class='codex-terminal'><pre>web room: online
-storage: local
-memory: device
-mode: cyberdeck</pre></div>
+      <div class='codex-terminal'><pre>web room: {esc(service)}
+storage: local state/soul.json
+memory count: {len(state.memories)}
+relic count: {len(state.relics)}
+network: {esc(words['net'])}
+uptime: {esc(words['uptime'])}
+mode: WalnutPi body first</pre></div>
     </section>
 """)
     if deck:
         return deck
-    return page(f"{nav('/settings')}<section class='room-page with-art'><h1>Settings</h1><p class='small'>local device</p></section>")
+    return page(f"{nav('/settings')}<section class='room-page with-art'><h1>Settings</h1><p class='small'>local device</p><pre>web room: {esc(service)}\nrelic count: {len(state.relics)}\nnetwork: {esc(words['net'])}</pre></section>")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -897,6 +1881,54 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/relics":
             state = pocket_soul.SoulState.load()
             self._send(json.dumps(state.relics, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
+            return
+        if path == "/api/stash":
+            state = pocket_soul.SoulState.load()
+            body = {
+                "spark": state.spark,
+                "hunt_streak": state.hunt_streak,
+                "items": state.stash_items(24),
+                "text": state.stash_view(12),
+            }
+            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
+            return
+        if path == "/api/badges":
+            state = pocket_soul.SoulState.load()
+            rows = [
+                {"name": name, "note": note, "unlocked": unlocked}
+                for name, note, unlocked in state.badge_rows()
+            ]
+            body = {
+                "lit": sum(1 for row in rows if row["unlocked"]),
+                "total": len(rows),
+                "badges": rows,
+                "text": state.badges_view(),
+            }
+            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
+            return
+        if path == "/api/nudge":
+            state = pocket_soul.SoulState.load()
+            result = state.next_play_nudge()
+            state.last_reply = result
+            state.save()
+            body = {"result": result, "live": live_payload(state)}
+            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
+            return
+        if path == "/api/daily":
+            state = pocket_soul.SoulState.load()
+            body = {
+                "daily": {
+                    "name": state.daily_name,
+                    "prompt": state.daily_prompt,
+                    "key": state.daily_key,
+                    "progress": state.daily_progress()[0],
+                    "target": state.daily_progress()[1],
+                    "reward": state.daily_reward,
+                    "done": state.daily_done,
+                },
+                "text": state.daily_view(),
+            }
+            self._send(json.dumps(body, ensure_ascii=False, indent=2).encode(), content_type="application/json; charset=utf-8")
             return
         if path == "/api/relic":
             index = parse_relic_id(params.get("id"))
@@ -949,6 +1981,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/memory":
             self._send(memory_page())
+            return
+        if path == "/stash":
+            self._send(stash_page())
+            return
+        if path == "/badges":
+            self._send(badges_page())
             return
         if path == "/ritual":
             self._send(ritual_page())
@@ -1010,6 +2048,33 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
     elif path == "/doorbell":
         state = pocket_soul.SoulState.load()
         result = state.doorbell("web button")
+        state.save()
+    elif path == "/hunt":
+        state = pocket_soul.SoulState.load()
+        result = state.pocket_hunt("web button")
+        state.save()
+    elif path == "/nudge":
+        state = pocket_soul.SoulState.load()
+        result = state.next_play_nudge()
+        state.save()
+    elif path == "/daily":
+        state = pocket_soul.SoulState.load()
+        action = data.get("action", ["view"])[0]
+        result = state.claim_daily_play("web button") if action == "claim" else state.daily_view()
+        state.save()
+    elif path == "/wheel":
+        state = pocket_soul.SoulState.load()
+        result = state.spark_wheel("web button")
+        state.save()
+    elif path == "/craft":
+        state = pocket_soul.SoulState.load()
+        target = data.get("target", [""])[0].strip()
+        result = state.craft_keepsake(target, "web button")
+        state.save()
+    elif path == "/use":
+        state = pocket_soul.SoulState.load()
+        target = data.get("target", [""])[0].strip()
+        result = state.use_stash_item(target, "web button")
         state.save()
     elif path == "/nightly":
         state = pocket_soul.SoulState.load()

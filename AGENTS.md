@@ -17,3 +17,5 @@ Principles:
 - Keep the code small, dependency-light, and easy to maintain.
 - Do not add tests for this project unless explicitly requested.
 - Favor reusable scripts over one-off shell incantations.
+
+use ssh walnutpi enter , then root root 

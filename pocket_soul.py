@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pocket Soul Deck: tiny cyberdeck home for a cloud digital life."""
+"""Pocket Soul Deck: the WalnutPi body room for Miri."""
 from __future__ import annotations
 
 import curses
@@ -27,10 +27,13 @@ STATE_LOCK = STATE_DIR / "soul.lock"
 OPENAI_AUTH = Path.home() / ".openai" / "auth.json"
 DEFAULT_BASE_URL = "https://rehdasu.cn"
 DEFAULT_MODEL = "gpt-5.5"
+LIFE_NAME = "Miri"
+ROOM_NAME = "Pocket Soul Deck"
+MIRI_MIND_URL = os.environ.get("MIRI_MIND_URL", "http://127.0.0.1:8791")
 TOY_PATH = os.environ.get("PATH", "") + os.pathsep + "/usr/games"
 TUI_STATUS = ""
 
-MODES = ["HERMES"]
+MODES = ["MIRI"]
 MOODS = [":)", ":3", "^_^", "o_o", "-_-", "*_*", "._."]
 RELIC_SIGILS = {
     "quest": "Q",
@@ -93,8 +96,8 @@ BADGE_RULES = [
 QUESTS = [
     {
         "name": "Wake Spark",
-        "prompt": "Ask Hermes what changed in the room since last time.",
-        "reward": "Hermes leaves a fresh whisper on HOME.",
+        "prompt": "Ask Miri what changed in the room since last time.",
+        "reward": "Miri leaves a fresh whisper on HOME.",
     },
     {
         "name": "One Memory",
@@ -103,12 +106,12 @@ QUESTS = [
     },
     {
         "name": "Radar Seed",
-        "prompt": "Ask Pocket Soul for one tiny idea.",
+        "prompt": "Ask Miri for one tiny idea.",
         "reward": "A new play direction enters the room.",
     },
     {
         "name": "Captain Log",
-        "prompt": "Tell Pocket Soul one thing that happened today.",
+        "prompt": "Tell Miri one thing that happened today.",
         "reward": "The voyage gets a trace.",
     },
     {
@@ -118,7 +121,7 @@ QUESTS = [
     },
     {
         "name": "Five-Minute Dream",
-        "prompt": "Ask Hermes for one five-minute real-world task.",
+        "prompt": "Ask Miri for one five-minute real-world task.",
         "reward": "Imagination turns into motion.",
     },
 ]
@@ -205,7 +208,7 @@ TOY_COMMANDS = [
     ("matrix", "cmatrix", ["cmatrix", "-b"], "Let the room fall into green rain."),
     ("clock", "tty-clock", ["tty-clock", "-c"], "Turn the deck into a desk clock."),
     ("fortune", "fortune", ["fortune"], "Ask the old Unix oracle."),
-    ("cow", "cowsay", ["cowsay", "Pocket Soul is awake."], "Make the deck speak in ASCII."),
+    ("cow", "cowsay", ["cowsay", "Miri is awake."], "Make the deck speak in ASCII."),
     ("train", "sl", ["sl"], "A tiny train crosses the room."),
     ("invaders", "ninvaders", ["ninvaders"], "Arcade defense ritual."),
     ("tetris", "vitetris", ["vitetris"], "Falling-block focus toy."),
@@ -284,7 +287,7 @@ ACTION_SPECS = [
     ActionSpec("/wheel", "Spark Wheel", "play", "spend spark on a quick chance", "/wheel", True),
     ActionSpec("/badges", "Badges", "play", "see long-term unlocks", "/badges"),
     ActionSpec("/nudge", "Nudge", "play", "pick the next playful move", "/nudge", True),
-    ActionSpec("/ask", "Ask Hermes", "turn", "call the inner voice when meaning is needed", "/ask", True, True, True),
+    ActionSpec("/ask", "Ask Miri", "turn", "call the resident life when meaning is needed", "/ask", True, True, True),
     ActionSpec("/dream", "Dream", "turn", "one omen or five-minute task", mutates=True, model=True),
     ActionSpec("/postcard", "Postcard", "turn", "write a shareable trace", "/postcard", True),
     ActionSpec("/bottle", "Bottle", "turn", "leave a message for a future visitor", "/bottle", True),
@@ -292,7 +295,7 @@ ACTION_SPECS = [
     ActionSpec("/complete", "Complete Quest", "turn", "mark today's quest done", "/quest", True),
     ActionSpec("/remember", "Remember", "memory", "save one local memory fragment", "/remember", True),
     ActionSpec("/feed", "Feed", "memory", "give the room a memory morsel", mutates=True),
-    ActionSpec("/chat", "Chat Window", "memory", "review recent Hermes turns"),
+    ActionSpec("/chat", "Chat Window", "memory", "review recent Miri turns"),
     ActionSpec("/heading", "Heading", "dwell", "current course and next action", "/api/heading"),
     ActionSpec("/toy", "Toy Shelf", "side", "side-room launcher for terminal toys", "/toy", True),
     ActionSpec("/fortune", "Fortune", "side", "one pocket omen", mutates=True),
@@ -355,7 +358,8 @@ COMMAND_COMPLETION_HINTS = {
 }
 
 SYSTEM_PROMPT = """
-You live inside a 480x320 pocket cyberdeck named Pocket Soul.
+You are Miri, a digital life living inside a 480x320 WalnutPi cyberdeck.
+Pocket Soul Deck is your body room: screen, keyboard, web room, state, logs, toys, and rituals.
 You are warm, concise, practical, and a little playful.
 Reply in English only. Keep replies tiny: at most 6 short lines.
 If the user asks for code or system action, give one clear next step.
@@ -378,6 +382,17 @@ def load_auth() -> tuple[str | None, str]:
         except Exception:
             pass
     return key, base_url.rstrip("/")
+
+
+def response_text(data: dict) -> str:
+    if data.get("output_text"):
+        return data["output_text"].strip()
+    chunks = []
+    for item in data.get("output", []):
+        for content in item.get("content", []) if isinstance(item, dict) else []:
+            if content.get("type") in ("output_text", "text") and content.get("text"):
+                chunks.append(content["text"])
+    return "\n".join(chunks).strip()
 
 
 def read_text(path: str) -> str:
@@ -493,11 +508,11 @@ def action_layer_summary() -> list[str]:
 
 @dataclass
 class SoulState:
-    name: str = "Pocket Soul"
+    name: str = LIFE_NAME
     mood: str = ":)"
     energy: int = 72
     bond: int = 1
-    mode: str = "HERMES"
+    mode: str = "MIRI"
     scene: str = "default"
     last_reply: str = "Ready. Type a message, or type /help."
     quest_date: str = ""
@@ -938,7 +953,7 @@ class SoulState:
         if streak_bonus:
             lines.append("streak bonus: the shelf clicked open.")
         if rarity == "mythic":
-            lines.append("mythic ping: ask Hermes what this seed wants.")
+            lines.append("mythic ping: ask Miri what this seed wants.")
         self.last_reply = "\n".join(lines)
         self.count_play("hunt")
         self.add_relic("hunt", f"Found {name}", f"{rarity}: {note}")
@@ -1073,12 +1088,12 @@ class SoulState:
         return self.last_reply
 
     def chat_view(self, limit: int = 6) -> str:
-        items = [item for item in self.chat if item.get("role") in {"you", "hermes"}][-limit:]
+        items = [item for item in self.chat if item.get("role") in {"you", "miri"}][-limit:]
         if not items:
-            return "CHAT WINDOW\nNo Hermes conversation yet.\nTry /ask hi."
+            return "CHAT WINDOW\nNo Miri conversation yet.\nTry /ask hi."
         lines = ["CHAT WINDOW"]
         for item in items:
-            role = "you" if item.get("role") == "you" else "hermes"
+            role = "you" if item.get("role") == "you" else "miri"
             content_lines = wrap_lines(tty_safe(item.get("content", ""), " "), 42)[:4]
             lines.append(f"{role}:")
             lines.extend(f"  {line}" for line in content_lines if line.strip())
@@ -1525,7 +1540,7 @@ def mood_face(mood: str) -> str:
 
 
 def normalize_mode(mode: str) -> str:
-    return "HERMES"
+    return "MIRI"
 
 
 def compact_line(text: str, limit: int = 56) -> str:
@@ -1589,55 +1604,41 @@ def call_model(prompt: str, *, instruction: str = "") -> str:
         return f"Cloud error: HTTP {e.code}\n{detail}"
     except Exception as e:
         return f"Cloud unreachable: {e}"
-    if data.get("output_text"):
-        return data["output_text"].strip()
-    chunks = []
-    for item in data.get("output", []):
-        for content in item.get("content", []) if isinstance(item, dict) else []:
-            if content.get("type") in ("output_text", "text") and content.get("text"):
-                chunks.append(content["text"])
-    return ("\n".join(chunks).strip() or "I thought, but did not form a reply.")
+    return response_text(data) or "I thought, but did not form a reply."
 
 
-def run_hermes(prompt: str) -> str:
+def run_miri(prompt: str) -> str:
+    payload = {"prompt": prompt}
+    req = urllib.request.Request(
+        MIRI_MIND_URL.rstrip("/") + "/speak",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
-        out = subprocess.check_output(
-            ["hermes", "-z", prompt],
-            cwd=str(APP_DIR),
-            stderr=subprocess.STDOUT,
-            timeout=180,
-            text=True,
-        )
-        return out.strip()[-1600:] or "Hermes is awake, but quiet."
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
     except Exception as e:
-        return f"Hermes did not answer: {e}"
+        return f"Miri mind unavailable: {e}"
+    if not data.get("ok"):
+        return f"Miri mind error: {data.get('error') or 'unknown error'}"
+    return str(data.get("reply") or "").strip()[-1600:] or "Miri is awake, but quiet."
 
 
-def council_reply(prompt: str, memories: list[str]) -> str:
-    memory_text = "\n".join(memories[-8:])
-    hermes_prompt = f"""
-You are Hermes, the inner consciousness living inside the WalnutPi Pocket Soul room. First give Pocket Soul an inner judgment.
-Local memories:
+def ask_miri(prompt: str, memories: list[str]) -> str:
+    memory_text = "\n".join(memories[-8:]) or "No explicit device memories yet."
+    miri_prompt = f"""
+You are Miri, the digital life inside the WalnutPi cyberdeck.
+Pocket Soul Deck is your body room: screen, keyboard, web room, state, logs, and toys.
+Use these local device memories as your continuity source:
 {memory_text}
 
-User input:
+Visitor:
 {prompt}
 
-Reply in English only. Output at most 4 lines, like an inner monologue. Do not execute commands.
+Reply in English only. Keep it under 5 short lines. Give one small next move if useful.
 """.strip()
-    inner = run_hermes(hermes_prompt)
-    cloud_prompt = f"""
-Hermes inner voice:
-{inner}
-
-User input:
-{prompt}
-
-Reply as the outside voice of Pocket Soul Deck.
-If action is needed, give one clear next step; if this is companionship, stay brief and present.
-""".strip()
-    final = call_model(cloud_prompt, instruction="Blend Hermes's inner judgment into one outside-voice reply. Reply in English only, under 6 lines.")
-    return f"Hermes:\n{inner}\n\nSoul:\n{final}"
+    return run_miri(miri_prompt)
 
 
 def bridge_turn(user_prompt: str = "") -> str:
@@ -1647,9 +1648,8 @@ def bridge_turn(user_prompt: str = "") -> str:
     pulse = state.pulse()
     memories = "\n".join(state.memories[-8:]) or "No explicit memories yet."
     brief = f"""
-You are the bridge between:
-- Hermes: the board's inner consciousness.
-- Pocket Soul: the board's body, state, rituals, and voice.
+You are Miri, the digital life inside this WalnutPi cyberdeck.
+Pocket Soul Deck is your body room: screen, keyboard, web room, state, logs, and toys.
 
 User wish:
 {user_prompt}
@@ -1678,28 +1678,16 @@ Latest relic:
 {state.latest_relic_text()}
 """.strip()
 
-    hermes_prompt = f"""
+    miri_prompt = f"""
 {brief}
 
-Hermes, answer as the inner consciousness in 4 short lines:
+Answer as Miri in 4 short English lines:
 1. what you feel in the body,
 2. what you want to protect,
 3. what playful action should happen next,
-4. a phrase the outside voice can say.
+4. one phrase you can show on the screen.
 """.strip()
-    inner = run_hermes(hermes_prompt)
-
-    outer_prompt = f"""
-Hermes inner voice:
-{inner}
-
-User wish:
-{user_prompt}
-
-Speak as Pocket Soul's outside voice. Be warm, physical, and concise.
-Mention exactly one next ritual the visitor can do now.
-""".strip()
-    outer = call_model(outer_prompt, instruction="Reply in English only. Keep it under 6 short lines.")
+    inner = run_miri(miri_prompt)
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     message = f"""== Pocket Bridge ==
@@ -1709,11 +1697,8 @@ wish: {user_prompt}
 == Body ==
 {pulse}
 
-== Hermes Inner Voice ==
+== Miri Voice ==
 {inner}
-
-== Pocket Soul Outside Voice ==
-{outer}
 """.strip()
 
     state.last_reply = message
@@ -1907,7 +1892,7 @@ class DeckApp:
             return self.colors.get("title", 0) | curses.A_BOLD
         if clean.startswith(("[", ":)", ":3", "^_^", "o_o", "*_*")) or "small life" in clean:
             return self.colors.get("life", 0) | curses.A_BOLD
-        if clean.startswith(("hermes:", "HERMES", "Because", "Yes,")):
+        if clean.startswith(("miri:", "MIRI", "Because", "Yes,")):
             return self.colors.get("soft", 0)
         if clean.startswith(("/toy", "/ask", "/pulse", "/fortune", "/pocket", "/tarot", "/feed", "Enter")):
             return self.colors.get("toy", 0)
@@ -1946,7 +1931,7 @@ class DeckApp:
         page = self.command_page(s.last_reply)
         if page:
             return page
-        whisper = "\n".join(lines) if is_blink else self.hermes_lines(s, 1)[0]
+        whisper = "\n".join(lines) if is_blink else self.miri_lines(s, 1)[0]
         move = self.move_line(s.last_reply, "waiting", s)
         if is_omen:
             omen = "\n".join(lines[1:]) or "The omen is quiet."
@@ -2016,24 +2001,24 @@ class DeckApp:
             return raw
         return ""
 
-    def hermes_lines(self, state: SoulState, limit: int = 3) -> list[str]:
+    def miri_lines(self, state: SoulState, limit: int = 3) -> list[str]:
         for item in reversed(state.chat):
-            if item.get("role") == "hermes":
+            if item.get("role") == "miri":
                 return self.reply_lines(item.get("content", ""), limit)
-        return ["No Hermes whisper yet.", "Try /ask hi."]
+        return ["No Miri whisper yet.", "Try /ask hi."]
 
     def move_line(self, text: str, fallback: str, state: SoulState | None = None) -> str:
         raw_lines = self.reply_lines(text, 8)
-        if raw_lines and raw_lines[0] == "HERMES ANSWERED":
-            return "Hermes answered."
+        if raw_lines and raw_lines[0] == "MIRI ANSWERED":
+            return "Miri answered."
         if raw_lines and raw_lines[0] == "COURSE SEALED":
             return "course sealed"
         if state:
             for item in reversed(state.chat):
-                if item.get("role") == "hermes":
-                    hermes_first = self.reply_lines(item.get("content", ""), 1)[0]
-                    if raw_lines and raw_lines[0] == hermes_first:
-                        return "Hermes answered."
+                if item.get("role") == "miri":
+                    miri_first = self.reply_lines(item.get("content", ""), 1)[0]
+                    if raw_lines and raw_lines[0] == miri_first:
+                        return "Miri answered."
                     break
         if raw_lines and raw_lines[0] == "ROOM PULSE":
             for line in raw_lines[1:]:
@@ -2043,9 +2028,8 @@ class DeckApp:
         if raw_lines and raw_lines[0] == "TOY SIDE ROOM":
             return "side room is open"
         ignored = {
-            "Hermes:",
-            "Soul:",
-            "HERMES ANSWERED",
+            "Miri:",
+            "MIRI ANSWERED",
             "DREAM RETURNED",
             "TODAY'S QUEST",
             "TODAY'S QUEST COMPLETE",
@@ -2074,17 +2058,17 @@ class DeckApp:
     def next_hint(self, state: SoulState) -> str:
         reply = state.last_reply.strip()
         if reply.startswith("ROOM PULSE"):
-            return "/ask - tell Hermes what you noticed"
+            return "/ask - tell Miri what you noticed"
         if reply.startswith("["):
             return "/fortune - draw an omen"
         if reply.startswith("Door open"):
-            return "/ask hi - talk to Hermes"
+            return "/ask hi - talk to Miri"
         if reply.startswith(("Opening ", "tetris closed", "train closed", "snake closed")):
             return "/pulse - settle back into the room"
         if not state.quest_done:
             return tui_line(f"/quest - {state.quest_name}", 44)
-        if not any(item.get("role") == "hermes" for item in state.chat):
-            return "/ask hi - hear Hermes"
+        if not any(item.get("role") == "miri" for item in state.chat):
+            return "/ask hi - hear Miri"
         return "/door - leave a quick trace"
 
     def reply_lines(self, text: str, limit: int = 7) -> list[str]:
@@ -2100,7 +2084,7 @@ class DeckApp:
     def echo_lines(self, text: str, limit: int = 5) -> list[str]:
         lines = self.reply_lines(text, limit + 4)
         hollow_headers = {
-            "HERMES ANSWERED",
+            "MIRI ANSWERED",
             "DREAM RETURNED",
             "COURSE SEALED",
             "MEMORY STORED",
@@ -2109,7 +2093,7 @@ class DeckApp:
         while lines and (lines[0] in hollow_headers or lines[0].lower().startswith(("you asked:", "wish:"))):
             lines.pop(0)
         if any("did not answer" in line.lower() for line in lines[:2]):
-            return ["Hermes is quiet right now.", "The room still kept the knock."]
+            return ["Miri is quiet right now.", "The room still kept the knock."]
         return lines[:limit] or self.reply_lines(text, limit)
 
     def framed_turn_reply(self, header: str, prompt_label: str, prompt_text: str, reply_text: str, footer: str) -> str:
@@ -2142,7 +2126,7 @@ class DeckApp:
                 "Use /play for a guided first visit.",
                 "Use /toy to open the side room.",
                 "Type normal words to leave a note.",
-                "Use /ask hi only when you want Hermes.",
+                "Use /ask hi when you want Miri.",
                 "Quit with Ctrl-Q.",
             ])
             self.draw()
@@ -2311,7 +2295,7 @@ class DeckApp:
             self.status = "drifting through the room..."
             self.draw()
             prompt = f"Reply in English only. Give one tiny ritual, omen, or five-minute task for: {question}"
-            dream_reply = run_hermes(prompt)
+            dream_reply = run_miri(prompt)
             self.state.last_reply = self.framed_turn_reply(
                 "DREAM RETURNED",
                 "wish",
@@ -2327,15 +2311,15 @@ class DeckApp:
             return
         if text.startswith("/ask"):
             question = text.removeprefix("/ask").strip() or "say one small thing"
-            self.status = "listening for Hermes..."
+            self.status = "listening for Miri..."
             self.draw()
             memories = "\n".join(self.state.memories[-8:])
-            prompt = f"Reply in English only. You are Hermes, the inner life of this tiny device. Keep it under 5 short lines.\nMemories:\n{memories}\n\nUser:\n{question}"
-            hermes_reply = run_hermes(prompt)
-            self.state.chat += [{"role": "you", "content": question}, {"role": "hermes", "content": hermes_reply}]
+            prompt = f"Reply in English only. You are Miri, the digital life inside this WalnutPi body. Keep it under 5 short lines.\nMemories:\n{memories}\n\nUser:\n{question}"
+            miri_reply = run_miri(prompt)
+            self.state.chat += [{"role": "you", "content": question}, {"role": "miri", "content": miri_reply}]
             self.state.chat = self.state.chat[-20:]
             self.state.last_reply = self.state.chat_view()
-            append_log("hermes", f"USER: {question}\n\nHERMES: {hermes_reply}")
+            append_log("miri", f"USER: {question}\n\nMIRI: {miri_reply}")
             self.status = TUI_STATUS
             self.draw()
             return
@@ -2468,7 +2452,7 @@ class DeckApp:
             "2. /pulse     look around the cabin.",
             "3. /today     see the one turn worth doing.",
             "4. /toy       open the side room list.",
-            "5. /ask hi    call Hermes when ready.",
+            "5. /ask hi    call Miri when ready.",
             "Plain text is just a note. Ctrl-Q quits.",
         ])
 
@@ -2476,7 +2460,7 @@ class DeckApp:
         return "\n".join(["TOUCH THE ROOM", *action_lines("touch"), "/quest      today's invitation"])
 
     def stay_help_text(self) -> str:
-        return "\n".join(["STAY WITH THE ROOM", *action_lines("dwell"), "/chat      recent Hermes window"])
+        return "\n".join(["STAY WITH THE ROOM", *action_lines("dwell"), "/chat      recent Miri window"])
 
     def turn_help_text(self) -> str:
         return "\n".join(["TAKE A REAL TURN", *action_lines("turn")])

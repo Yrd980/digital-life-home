@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(dirname "$(dirname "$(readlink -f "$0")")")"
 cat > /etc/systemd/system/pocket-soul-heartbeat.service <<SERVICE
 [Unit]
-Description=Pocket Soul self-evolution heartbeat
+Description=Miri body self-evolution heartbeat
 After=network-online.target
 
 [Service]
@@ -13,7 +13,7 @@ ExecStart=$ROOT/scripts/heartbeat.sh
 SERVICE
 cat > /etc/systemd/system/pocket-soul-heartbeat.timer <<TIMER
 [Unit]
-Description=Run Pocket Soul heartbeat every 15 minutes
+Description=Run Miri heartbeat every 15 minutes
 
 [Timer]
 OnBootSec=2min

@@ -18,7 +18,7 @@ if logs:
 
 prompt = f"""
 Current time: {now}.
-You are Hermes, living inside the WalnutPi Pocket Soul Deck.
+You are Miri, living inside the WalnutPi Pocket Soul Deck.
 Run one self-evolution heartbeat:
 1. Observe current state: mood={state.mood}, energy={state.energy}, bond={state.bond}, mode={state.mode}
 2. Find one pattern in the recent logs
@@ -32,7 +32,7 @@ Recent logs:
 Output JSON with these fields: mood, energy_delta, bond_delta, whisper, evolution_task, heading, next_action.
 All string values must be English.
 """.strip()
-raw = pocket_soul.run_hermes(prompt)
+raw = pocket_soul.run_miri(prompt)
 try:
     start = raw.find("{")
     end = raw.rfind("}") + 1
@@ -59,7 +59,7 @@ if not heading or not next_action:
     next_action = next_action or fallback_action
 state.last_reply = whisper
 state.set_heading(heading, next_action, "heartbeat")
-state.add_relic("heartbeat", "Hermes whisper", whisper)
+state.add_relic("heartbeat", "Miri whisper", whisper)
 state.save()
 pocket_soul.append_log("heartbeat", f"RAW:\n{raw}\n\nWHISPER:\n{whisper}\n\nEVOLUTION_TASK:\n{task}")
 Path("state/evolution.md").parent.mkdir(exist_ok=True)

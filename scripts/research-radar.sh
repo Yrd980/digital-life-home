@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cat <<'RADAR'
-Pocket Soul Radar Sources
+Miri Radar Sources
 
 HN:
 - Cyberdeck / recovery kit: dedicated devices feel magical when they are ready, rugged, and useful.

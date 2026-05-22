@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(dirname "$(dirname "$(readlink -f "$0")")")"
 cat > /etc/systemd/system/pocket-soul-web.service <<SERVICE
 [Unit]
-Description=Pocket Soul Deck Web Room
+Description=Miri Deck Web Room
 After=network-online.target
 Wants=network-online.target
 

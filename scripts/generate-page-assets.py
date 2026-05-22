@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate compact Pocket Soul page assets.
+"""Generate compact Miri Deck page assets.
 
 This is a deterministic fallback asset pipeline. AI-generated replacements can
 drop in with the same filenames later.

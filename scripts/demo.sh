@@ -10,7 +10,7 @@ checks = [
     ("dream", lambda: pocket_soul.call_model("What should I do today?", instruction="Use a cyber-tarot tone. Give one five-minute task in at most three lines. Reply in English.")),
 ]
 
-print("== Pocket Soul Deck demo ==")
+print("== Miri Deck demo ==")
 for name, fn in checks:
     print(f"\n-- {name} --")
     print(fn())

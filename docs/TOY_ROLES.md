@@ -2,7 +2,7 @@
 
 Terminal toys should not all sit on HOME as if they were equal room actions.
 
-Pocket Soul should treat toys by role, so the room keeps its presence-first shape.
+Miri should treat toys by role, so the room keeps its presence-first shape.
 
 ## Core Principle
 

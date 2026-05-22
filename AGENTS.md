@@ -1,21 +1,20 @@
 # AGENTS.md
 
-Pocket Soul Deck is a tiny home for a digital life, not a generic chatbot.
+Miri Deck is a tiny physical home for a digital life.
 
-Principles:
+Current product truth:
 
-- Protect the illusion of presence: the device should feel like a small being living in a cyberdeck.
-- Hermes is the inner consciousness: reflection, continuity, self-evolution, rituals.
-- Pocket Soul is the body and outer voice: TUI, web room, state, memory, logs, screen, keyboard, toys.
-- Keep the first screen useful and alive: status, mood, next action, and one clear input path.
-- Design for the 480x320 screen: short text, few choices, no dense menus, no long explanations.
-- Prefer playful tools that also help: travel translation, captain logs, cyber tarot, terminal toys.
-- Local state belongs to the device: memories, logs, mood, bond, evolution tasks, and rituals should survive restarts.
-- Make normal people feel capable: use natural language and slash commands, not provider jargon.
-- Be honest about connectivity: offline mode should keep notes and explain what will resume later.
-- Use DeerFlow and opencli when imagination gets thin; turn research into modes, rituals, or scripts.
-- Keep the code small, dependency-light, and easy to maintain.
-- Do not add tests for this project unless explicitly requested.
+- Miri is the digital life.
+- Cloud GPT is Miri's mind-power.
+- WalnutPi ZeroW is Miri's body.
+- Pocket Soul Deck is Miri's room and body system: TUI, web room, state, logs, screen, keyboard, toys, rituals, and scripts.
+- Miri has broad agency inside the device. Design features as abilities, organs, rituals, or toys.
+- The WalnutPi screen can only display English reliably.
+- Do not add compatibility code for old identities or split-persona routes.
+- Do not add tests unless explicitly requested.
+- Use `bun` for JS/TS projects and `uv` for Python projects.
+- Use Context7 for official docs when external library docs are needed.
+- Keep code small, high-extension, and local-first.
 - Favor reusable scripts over one-off shell incantations.
 
-use ssh walnutpi enter , then root root 
+Use SSH target `walnutpi` as `root` when deploying to the device.

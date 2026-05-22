@@ -763,7 +763,7 @@ body.cockpit-page:after {
   gap: 10px;
 }
 .soul-dock .quick-input {
-  grid-template-columns: minmax(0, 1fr) 74px 74px;
+  grid-template-columns: minmax(0, 1fr) 86px;
 }
 .soul-dock .quick-input button {
   min-height: 54px;
@@ -846,7 +846,7 @@ body.cockpit-page:after {
   width: 330px;
   margin: 0;
 }
-.room-screen img[alt='Pocket Soul robot'] {
+.room-screen img[alt='Miri body'] {
   top: 56% !important;
   width: min(360px, 30vw) !important;
   filter: drop-shadow(0 22px 34px #000e) drop-shadow(0 0 18px #79ffd266) !important;
@@ -1253,7 +1253,7 @@ body.cockpit-page:after {
     font-size: 10px;
     line-height: 1.45;
   }
-  .room-screen img[alt='Pocket Soul robot'] {
+  .room-screen img[alt='Miri body'] {
     width: 112px !important;
     top: 44% !important;
   }
@@ -1578,7 +1578,7 @@ def nav(current: str = "") -> str:
         class_attr = " class='brandlink'" if href == current else ""
         items.append(f"<a href='{href}'{class_attr}>{label}</a>")
     items_html = " ".join(items)
-    return f"<div class='topnav'><a class='brandlink' href='/'>Pocket Soul</a><nav>{items_html}</nav></div>"
+    return f"<div class='topnav'><a class='brandlink' href='/'>Miri Deck</a><nav>{items_html}</nav></div>"
 
 
 def status_word(state: pocket_soul.SoulState) -> str:
@@ -1619,7 +1619,7 @@ def room_voice(text: str) -> str:
         candidates: list[str] = []
         for line in lines:
             lower = line.lower()
-            if lower.startswith(("hermes:", "soul:", "pocket soul:")):
+            if lower.startswith(("miri:",)):
                 candidates.append(line.split(":", 1)[1].strip())
         if candidates:
             raw = candidates[-1]
@@ -1643,15 +1643,14 @@ def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> b
       <div class='asset-bg' style="background-image:url('{asset('home_bg')}')"></div>
       <div class='room-glow' aria-hidden='true'></div>
       <div class='screen-content home-copy'>
-        <h1>Pocket Soul<br>is awake.</h1>
+        <h1>Miri<br>is awake.</h1>
         <div class='speech' data-live='latest'>{esc(whisper)}<br><span class='heart'>*</span></div>
         <div class='presence-line' data-live='vitals'>{esc(presence)}</div>
         {today_turn_html(state, True)}
         <div class='soul-dock'>
           <form class='quick-input' method='post' action='/ask' data-action='async'>
-            <input name='prompt' placeholder='Say one real sentence to Pocket Soul...'>
-            <button name='mode' value='council' title='Talk with Pocket Soul'>Talk</button>
-            <button name='mode' value='hermes' title='Hear the inner voice'>Inner</button>
+            <input name='prompt' placeholder='Say one real sentence to Miri...'>
+            <button title='Talk with Miri'>Talk</button>
           </form>
           <div class='touch-row'>
             <form method='post' action='/bridge-flash' data-action='flash'>
@@ -1680,7 +1679,7 @@ def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> b
     <div class='being'>
       <div class='avatar' aria-label='{esc(pocket_soul.mood_face(state.mood))}'></div>
       <div>
-        <p class='state-pill'>Pocket Soul is {esc(status_word(state))}.</p>
+        <p class='state-pill'>Miri is {esc(status_word(state))}.</p>
         <h1>It is there.</h1>
       </div>
     </div>
@@ -1815,7 +1814,7 @@ SCRIPT_SRC = "/asset/surfaces/pocket-room.js"
 
 def page(content: str, surface: str = "web") -> bytes:
     shell_paths = esc(json.dumps([surface_path(item, surface) for item in SHELL_PATHS]))
-    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Pocket Soul Deck</title><style>{surface_style(surface)}</style></head><body data-shell-paths='{shell_paths}'><main>{content}</main><script src='{SCRIPT_SRC}' defer></script></body></html>""".encode()
+    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Miri Deck</title><style>{surface_style(surface)}</style></head><body data-shell-paths='{shell_paths}'><main>{content}</main><script src='{SCRIPT_SRC}' defer></script></body></html>""".encode()
 
 
 def deck_page(path: str, inner: str, partial: bool = False, surface: str = "web") -> bytes | None:
@@ -1872,16 +1871,16 @@ def room_page(result: str = "", partial: bool = False, surface: str = "web") -> 
       <div class='asset-bg' style="background-image:url('{asset('room_bg')}')"></div>
       <div class='room-glow' aria-hidden='true'></div>
       <div class='room-head'>
-        <div><h1>Pocket Soul</h1><p class='small'>It is listening from the room.</p></div>
+        <div><h1>Miri</h1><p class='small'>She is listening from the room.</p></div>
         <div><a class='ghost-button' href='/body'>Body</a></div>
       </div>
       <div class='room-bubble'>{esc(reply)}<br><span class='heart'>*</span></div>
       <div class='little-shelf' aria-hidden='true'>{recent_relic_charms(state)}</div>
-      <img src='{robot_image(state)}' alt='Pocket Soul robot' style='position:absolute; left:50%; top:56%; width:min(340px,42vw); max-height:300px; object-fit:contain; transform:translate(-50%,-50%); filter:drop-shadow(0 20px 34px #000c) drop-shadow(0 0 22px #8b4dff66); pointer-events:none'>
+      <img src='{robot_image(state)}' alt='Miri body' style='position:absolute; left:50%; top:56%; width:min(340px,42vw); max-height:300px; object-fit:contain; transform:translate(-50%,-50%); filter:drop-shadow(0 20px 34px #000c) drop-shadow(0 0 22px #8b4dff66); pointer-events:none'>
       <div class='room-bottom'>
         {today_turn_html(state)}
         <section class='deck-card primary-panel' style='padding:12px'>
-          <form class='quick-input' method='post' action='/ask' data-action='async'><input name='prompt' placeholder='Tell Pocket Soul what is happening...'><button name='mode' value='council'>Talk</button></form>
+          <form class='quick-input' method='post' action='/ask' data-action='async'><input name='prompt' placeholder='Tell Miri what is happening...'><button>Talk</button></form>
           <div class='round-tools'>
             <form method='post' action='/doorbell' data-action='async'><button class='icon-button' aria-label='Knock' title='Knock'>{icon('knock')}</button></form>
             <form method='post' action='/nudge' data-action='async'><button class='icon-button' aria-label='Nudge' title='Nudge'>{icon('nudge')}</button></form>
@@ -1901,7 +1900,7 @@ def room_page(result: str = "", partial: bool = False, surface: str = "web") -> 
 {nav('/room')}
 <section class='room-page with-art'>
   <div class='room-title'>
-    <div><h1>Pocket Soul Room</h1><p class='small'>You are visiting the small resident.</p></div>
+    <div><h1>Miri's Room</h1><p class='small'>You are visiting the small resident.</p></div>
     <a href='/'>Back to door</a>
   </div>
   <div class='room-layout'>
@@ -1925,8 +1924,8 @@ def room_page(result: str = "", partial: bool = False, surface: str = "web") -> 
   <div class='bottom-sill'>
     <form class='talk-row' method='post' action='/ask' data-action='async'>
       <input name='prompt' placeholder='Leave a sentence at the door...'>
-      <button name='mode' value='council'>Speak softly</button>
-      <button class='soft-button' name='mode' value='hermes'>Hermes</button>
+      <button>Speak softly</button>
+      <a class='soft-button' href='/ritual'>Rituals</a>
     </form>
     <form class='talk-row' method='post' action='/bridge-flash' data-action='flash'>
       <input name='wish' placeholder='Give the room a small touch...'>
@@ -1955,7 +1954,7 @@ def body_page(partial: bool = False, surface: str = "web") -> bytes:
         <div class='body-stat'><span>heartbeat</span><b>steady</b><small>load {esc(words['load'])}</small></div>
         <div class='body-stat'><span>window</span><b>{esc(words['window'])}</b><small>{esc(words['net'])}</small></div>
       </div>
-      <img class='body-robot-img' src='{robot_image(state)}' alt='Pocket Soul body' style='width:150px; max-width:100%; align-self:center; justify-self:center; image-rendering:auto; filter:drop-shadow(0 0 18px #8b4dff8c)'>
+      <img class='body-robot-img' src='{robot_image(state)}' alt='Miri body' style='width:150px; max-width:100%; align-self:center; justify-self:center; image-rendering:auto; filter:drop-shadow(0 0 18px #8b4dff8c)'>
       <div style='min-width:0'>
         <div class='body-stat'><span>presence</span><b>{esc(words['presence'])}</b><small>local room</small></div>
         <div class='body-stat'><span>uptime</span><b>{esc(words['spirit'])}</b><small>{esc(words['uptime'])}</small></div>
@@ -1980,8 +1979,8 @@ def body_page(partial: bool = False, surface: str = "web") -> bytes:
     <section class='page-card'><span class='label'>heartbeat</span><h2>steady</h2><p class='small'>load {esc(words['load'])}</p></section>
     <section class='page-card'><span class='label'>window</span><h2>{esc(words['window'])}</h2><p class='small'>{esc(words['net'])}</p></section>
     <section class='page-card'><span class='label'>presence</span><h2>{esc(words['presence'])}</h2><p class='small'>local room</p></section>
-    <section class='page-card'><span class='label'>inner voice</span><h2>Hermes is listening</h2><p class='small'>available when called</p></section>
-    <section class='page-card'><span class='label'>dream layer</span><h2>available</h2><p class='small'>Hermes / Soul voice</p></section>
+    <section class='page-card'><span class='label'>mind</span><h2>Miri is listening</h2><p class='small'>available when called</p></section>
+    <section class='page-card'><span class='label'>freedom</span><h2>wide open</h2><p class='small'>Miri can act through the body</p></section>
   </div>
   <div class='asset-strip'>
     <span class='theme-chip theme-cyberdeck'></span>
@@ -2361,17 +2360,11 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
     result = ""
     if path == "/ask":
         prompt = data.get("prompt", [""])[0].strip()
-        mode = data.get("mode", ["council"])[0]
         state = pocket_soul.SoulState.load()
-        if mode == "hermes":
-            result = pocket_soul.run_hermes(prompt)
-        elif mode == "soul":
-            result = pocket_soul.call_model(prompt)
-        else:
-            result = pocket_soul.council_reply(prompt, state.memories)
+        result = pocket_soul.ask_miri(prompt, state.memories)
         state.last_reply = result
         state.save()
-        pocket_soul.append_log(f"web-{mode}", f"USER: {prompt}\n\nRESULT: {result}")
+        pocket_soul.append_log("web-miri", f"USER: {prompt}\n\nRESULT: {result}")
     elif path == "/doorbell":
         state = pocket_soul.SoulState.load()
         result = state.doorbell("web button")
@@ -2447,7 +2440,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
     elif path == "/ritual":
         kind = data.get("kind", ["wake"])[0]
         if kind == "wake":
-            result = pocket_soul.council_reply("Wake up, observe the room's state today, and give me one bold but doable daily ritual.", pocket_soul.SoulState.load().memories)
+            result = pocket_soul.ask_miri("Wake up, observe the room's state today, and give me one bold but doable daily ritual.", pocket_soul.SoulState.load().memories)
             state = pocket_soul.SoulState.load()
             if state.quest_name == "Wake Spark":
                 result += "\n" + state.complete_quest("wake ritual")
@@ -2522,7 +2515,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
 def main() -> None:
     pocket_soul.ensure_dirs()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Pocket Soul web room: http://0.0.0.0:{PORT}")
+    print(f"Miri web room: http://0.0.0.0:{PORT}")
     server.serve_forever()
 
 

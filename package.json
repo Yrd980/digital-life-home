@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "author": "",
   "main": "index.js",
-  "description": "Pocket Soul Deck is a living cyberdeck system for WalnutPi ZeroW.",
+  "description": "Miri Deck gives a digital life a WalnutPi body and room.",
   "directories": {
     "doc": "docs"
   },

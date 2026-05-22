@@ -11,21 +11,21 @@ mkdir -p "$ROOT/state"
 case "${1:-start}" in
   start)
     if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-      echo "Pocket Soul web already running: pid $(cat "$PIDFILE")"
+      echo "Miri web already running: pid $(cat "$PIDFILE")"
       exit 0
     fi
     python3 pocket_web.py >"$LOGFILE" 2>&1 &
     echo "$!" >"$PIDFILE"
-    echo "Pocket Soul web started: http://127.0.0.1:8787 pid $(cat "$PIDFILE")"
+    echo "Miri web started: http://127.0.0.1:8787 pid $(cat "$PIDFILE")"
     ;;
   stop)
     if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
       kill "$(cat "$PIDFILE")"
       rm -f "$PIDFILE"
-      echo "Pocket Soul web stopped"
+      echo "Miri web stopped"
     else
       rm -f "$PIDFILE"
-      echo "Pocket Soul web was not running"
+      echo "Miri web was not running"
     fi
     ;;
   restart)

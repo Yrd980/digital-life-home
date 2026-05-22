@@ -1,6 +1,6 @@
 const PHASES = {
-  '/ask': ['opening inner channel', 'listening to Hermes', 'writing memory trace'],
-  '/bridge': ['scanning body', 'asking Hermes', 'shaping outside voice'],
+  '/ask': ['opening mind channel', 'listening to Miri', 'writing memory trace'],
+  '/bridge': ['scanning body', 'asking Miri', 'shaping room voice'],
   '/nightly': ['reading today logs', 'folding relics', 'writing nightly'],
   '/postcard': ['reading heading', 'drawing constellation', 'writing postcard'],
   '/bottle': ['sealing message', 'placing bottle in state', 'refreshing shelf'],

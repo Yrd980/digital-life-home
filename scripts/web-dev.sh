@@ -14,7 +14,7 @@ case "${1:-start}" in
       echo "Miri web already running: pid $(cat "$PIDFILE")"
       exit 0
     fi
-    python3 pocket_web.py >"$LOGFILE" 2>&1 &
+    setsid python3 pocket_web.py >"$LOGFILE" 2>&1 < /dev/null &
     echo "$!" >"$PIDFILE"
     echo "Miri web started: http://127.0.0.1:8787 pid $(cat "$PIDFILE")"
     ;;

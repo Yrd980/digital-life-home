@@ -5,6 +5,6 @@ cd "$ROOT"
 python3 - <<'PY'
 import pocket_soul
 
-state = pocket_soul.SoulState.load()
+state = pocket_soul.RoomState.load()
 print(state.pulse())
 PY

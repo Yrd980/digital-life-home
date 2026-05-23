@@ -1,5 +1,5 @@
 const PHASES = {
-  '/ask': ['opening mind channel', 'listening to Miri', 'writing memory trace'],
+  '/ask': ['opening mind channel', 'listening to Miri', 'writing chat trace'],
   '/bridge': ['scanning body', 'asking Miri', 'shaping room voice'],
   '/nightly': ['reading today logs', 'folding relics', 'writing nightly'],
   '/postcard': ['reading heading', 'drawing constellation', 'writing postcard'],
@@ -9,7 +9,7 @@ const PHASES = {
   '/toy': ['checking toy bay', 'saving toy trace'],
   '/quest': ['touching quest', 'updating state', 'saving relic'],
   '/heading': ['reading heartbeat', 'choosing heading', 'saving course'],
-  '/remember': ['holding memory', 'writing state', 'lighting relic']
+  '/note': ['pinning room note', 'writing room state', 'leaving visible trace']
 };
 function setThinking(active, text) {
   const phase = document.querySelector("[data-live='phase']");

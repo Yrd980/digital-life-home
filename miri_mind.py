@@ -67,6 +67,16 @@ def ensure_miri_home() -> None:
         config_path.write_text(MIRI_CONFIG + "\n", encoding="utf-8")
 
 
+def ensure_runtime_root() -> None:
+    if not (RUNTIME_ROOT / "run_agent.py").exists():
+        raise RuntimeError(
+            f"Hermes runtime not found at {RUNTIME_ROOT}. "
+            "Set MIRI_RUNTIME_ROOT to a Hermes checkout or install Hermes at /usr/local/lib/hermes-agent."
+        )
+    if str(RUNTIME_ROOT) not in sys.path:
+        sys.path.insert(0, str(RUNTIME_ROOT))
+
+
 class MiriKernel:
     def __init__(self) -> None:
         self.lock = threading.Lock()
@@ -76,15 +86,13 @@ class MiriKernel:
         self.agent = self._create_agent()
 
     def _create_session_db(self):
-        if str(RUNTIME_ROOT) not in sys.path:
-            sys.path.insert(0, str(RUNTIME_ROOT))
+        ensure_runtime_root()
         from hermes_state import SessionDB
 
         return SessionDB()
 
     def _create_agent(self):
-        if str(RUNTIME_ROOT) not in sys.path:
-            sys.path.insert(0, str(RUNTIME_ROOT))
+        ensure_runtime_root()
         os.environ.setdefault("HERMES_YOLO_MODE", "1")
         os.environ.setdefault("HERMES_ACCEPT_HOOKS", "1")
         from run_agent import AIAgent

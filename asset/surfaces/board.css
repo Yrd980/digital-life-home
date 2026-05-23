@@ -149,7 +149,7 @@
   display: none;
 }
 
-.surface-board .memory-mini,
+.surface-board .notes-mini,
 .surface-board .body-mini,
 .surface-board .ritual-mini,
 .surface-board .settings-mini {
@@ -158,13 +158,13 @@
   overflow: auto;
 }
 
-.surface-board .memory-mini > div,
+.surface-board .notes-mini > div,
 .surface-board .settings-mini > div {
   padding: 0;
   border: 0;
 }
 
-.surface-board .memory-mini > div + div {
+.surface-board .notes-mini > div + div {
   display: none;
 }
 

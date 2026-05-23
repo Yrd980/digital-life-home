@@ -53,9 +53,9 @@ PAGES = [
     DeckPage("/", "home", "Home", "deck-home"),
     DeckPage("/room", "room", "Room", "deck-room"),
     DeckPage("/body", "body", "Body", "deck-body"),
-    DeckPage("/memory", "memory", "Memory", "deck-memory"),
-    DeckPage("/stash", "grid", "Stash", "deck-memory"),
-    DeckPage("/badges", "badge", "Badges", "deck-memory", nav=False),
+    DeckPage("/notes", "notes", "Notes", "deck-notes"),
+    DeckPage("/stash", "grid", "Stash", "deck-stash"),
+    DeckPage("/badges", "badge", "Badges", "deck-badges", nav=False),
     DeckPage("/ritual", "ritual", "Ritual", "deck-ritual"),
     DeckPage("/settings", "settings", "Settings", "deck-settings"),
 ]
@@ -598,7 +598,6 @@ body.cockpit-page:after {
 .relic-charm.kind-wake { background-position: -174px 0; }
 .relic-charm.kind-hunt { background-position: -232px 0; }
 .relic-charm.kind-craft { background-position: -290px 0; }
-.relic-charm.kind-memory { background-position: 0 -58px; }
 .relic-charm.kind-postcard { background-position: -58px -58px; }
 .relic-charm.kind-bottle { background-position: -116px -58px; }
 .relic-charm.kind-wheel { background-position: -174px -58px; }
@@ -756,16 +755,16 @@ body.cockpit-page:after {
   color: #77ffa3;
   font-weight: normal;
 }
-.soul-dock {
+.home-dock {
   width: min(520px, calc(100vw - 340px));
   margin-top: 18px;
   display: grid;
   gap: 10px;
 }
-.soul-dock .quick-input {
+.home-dock .quick-input {
   grid-template-columns: minmax(0, 1fr) 86px;
 }
-.soul-dock .quick-input button {
+.home-dock .quick-input button {
   min-height: 54px;
   border-radius: 8px;
   padding: 0;
@@ -980,7 +979,7 @@ body.cockpit-page:after {
   margin-top: 6px;
   color: #8f9aac;
 }
-.memory-mini {
+.notes-mini {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
   gap: 0;
@@ -988,14 +987,14 @@ body.cockpit-page:after {
     radial-gradient(circle at 74% 48%, #6d3df042 0 120px, transparent 330px),
     linear-gradient(180deg, #0e1625 0%, #080d16 100%);
 }
-.memory-mini > div {
+.notes-mini > div {
   padding: 28px;
   min-width: 0;
 }
-.memory-mini > div:first-child {
+.notes-mini > div:first-child {
   border-right: 1px solid #263852;
 }
-.memory-mini pre {
+.notes-mini pre {
   color: #cbbd9f;
   font-size: 18px;
   line-height: 1.35;
@@ -1190,7 +1189,6 @@ body.cockpit-page:after {
   .relic-charm.kind-wake { background-position: -102px 0; }
   .relic-charm.kind-hunt { background-position: -136px 0; }
   .relic-charm.kind-craft { background-position: -170px 0; }
-  .relic-charm.kind-memory { background-position: 0 -34px; }
   .relic-charm.kind-postcard { background-position: -34px -34px; }
   .relic-charm.kind-bottle { background-position: -68px -34px; }
   .relic-charm.kind-wheel { background-position: -102px -34px; }
@@ -1223,11 +1221,11 @@ body.cockpit-page:after {
     max-height: 52px;
     overflow: hidden;
   }
-  .soul-dock {
+  .home-dock {
     width: 240px;
     margin-top: 10px;
   }
-  .soul-dock .quick-input,
+  .home-dock .quick-input,
   .touch-row,
   .touch-row form {
     grid-template-columns: 1fr;
@@ -1292,7 +1290,7 @@ body.cockpit-page:after {
     margin: 8px 0;
   }
   .body-mini,
-  .memory-mini {
+  .notes-mini {
     grid-template-columns: 1fr;
     gap: 0;
     overflow: auto;
@@ -1357,6 +1355,8 @@ def is_provider_error(text: str) -> bool:
         "did not answer",
         "traceback",
         "connection error",
+        "connection refused",
+        "miri mind unavailable",
         "timeout",
     ]
     return any(needle in raw for needle in needles)
@@ -1370,7 +1370,6 @@ def charm_kind(kind: str) -> str:
         "wake",
         "hunt",
         "craft",
-        "memory",
         "postcard",
         "bottle",
         "wheel",
@@ -1385,7 +1384,7 @@ def relic_charm_html(kind: str, label: str = "") -> str:
     return f"<span class='relic-charm kind-{charm_kind(kind)}' title='{title}' aria-label='{title}'></span>"
 
 
-def recent_relic_charms(state: pocket_soul.SoulState, limit: int = 4) -> str:
+def recent_relic_charms(state: pocket_soul.RoomState, limit: int = 4) -> str:
     visible = [item for item in state.relics if item.get("kind") != "visit"] or state.relics
     charms = [
         relic_charm_html(item.get("kind", ""), item.get("title", "room trace"))
@@ -1396,12 +1395,12 @@ def recent_relic_charms(state: pocket_soul.SoulState, limit: int = 4) -> str:
     return "".join(charms)
 
 
-def recent_relics_html(state: pocket_soul.SoulState, limit: int = 4) -> str:
+def recent_relics_html(state: pocket_soul.RoomState, limit: int = 4) -> str:
     charms = recent_relic_charms(state, limit)
     return "<div class='relic-dock' aria-hidden='true'>" + "".join(charms) + "</div>"
 
 
-def shelf_objects_html(state: pocket_soul.SoulState, limit: int = 8) -> str:
+def shelf_objects_html(state: pocket_soul.RoomState, limit: int = 8) -> str:
     items = state.stash_items(limit)
     if items:
         charms = [relic_charm_html(item.get("kind", "hunt"), item.get("title", "stash object")) for item in items]
@@ -1420,7 +1419,7 @@ ICONS = {
     "home": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M4 11.5 12 5l8 6.5'/><path d='M6.5 10.8V20h11v-9.2'/><path d='M9.5 20v-5.5h5V20'/></svg>",
     "room": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M7 20V9l5-4 5 4v11'/><path d='M10 20v-6h4v6'/><path d='M4 20h16'/></svg>",
     "body": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3.1A4.2 4.2 0 0 1 19 11c0 5.6-7 10-7 10Z'/></svg>",
-    "memory": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 6h14'/><path d='M5 11h14'/><path d='M5 16h14'/><path d='M5 21h14'/></svg>",
+    "notes": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 6h14'/><path d='M5 11h14'/><path d='M5 16h14'/><path d='M5 21h14'/></svg>",
     "ritual": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3v5'/><path d='M8.5 8h7'/><path d='m9.5 11-2 9h9l-2-9'/><path d='M9 16h6'/></svg>",
     "grid": "<svg viewBox='0 0 24 24' aria-hidden='true'><rect x='4' y='4' width='6' height='6' rx='1'/><rect x='14' y='4' width='6' height='6' rx='1'/><rect x='4' y='14' width='6' height='6' rx='1'/><rect x='14' y='14' width='6' height='6' rx='1'/></svg>",
     "knock": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3.1A4.2 4.2 0 0 1 19 11c0 5.6-7 10-7 10Z'/></svg>",
@@ -1439,7 +1438,7 @@ def icon(name: str) -> str:
     return ICONS.get(name, "")
 
 
-def stash_html(state: pocket_soul.SoulState, limit: int = 8, interactive: bool = False) -> str:
+def stash_html(state: pocket_soul.RoomState, limit: int = 8, interactive: bool = False) -> str:
     items = state.stash_items(limit)
     if not items:
         return "<p class='small'>Nothing on the shelf yet. Hunt first, then craft.</p>"
@@ -1456,7 +1455,7 @@ def stash_html(state: pocket_soul.SoulState, limit: int = 8, interactive: bool =
     return "<div class='stash-grid'>" + "".join(cards) + "</div>"
 
 
-def badges_html(state: pocket_soul.SoulState) -> str:
+def badges_html(state: pocket_soul.RoomState) -> str:
     cards = []
     for name, note, unlocked in state.badge_rows():
         klass = "badge-tile is-lit" if unlocked else "badge-tile"
@@ -1465,7 +1464,7 @@ def badges_html(state: pocket_soul.SoulState) -> str:
     return "<div class='badge-wall'>" + "".join(cards) + "</div>"
 
 
-def nudge_preview(state: pocket_soul.SoulState) -> str:
+def nudge_preview(state: pocket_soul.RoomState) -> str:
     old_reply = state.last_reply
     try:
         return state.next_play_nudge()
@@ -1473,7 +1472,7 @@ def nudge_preview(state: pocket_soul.SoulState) -> str:
         state.last_reply = old_reply
 
 
-def today_turn_html(state: pocket_soul.SoulState, compact: bool = False) -> str:
+def today_turn_html(state: pocket_soul.RoomState, compact: bool = False) -> str:
     turn = state.today_turn()
     progress = "done" if turn["daily_done"] else f"{turn['progress']}/{turn['target']}"
     quest = "done" if turn["quest_done"] else "open"
@@ -1532,14 +1531,14 @@ def latest_bottle() -> str:
 
 
 def latest_bridge() -> str:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     if "== Pocket Bridge ==" in state.last_reply:
         return state.last_reply[-5000:]
     return "No bridge turn yet."
 
 
 def latest_flash() -> str:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     if "== Bridge Flash ==" in state.last_reply:
         return state.last_reply[-2000:]
     for item in reversed(state.relics):
@@ -1572,7 +1571,7 @@ def body_words() -> dict[str, str]:
 
 
 def nav(current: str = "") -> str:
-    links = [("/", "Door"), ("/room", "Room"), ("/body", "Body"), ("/memory", "Memory"), ("/ritual", "Rituals")]
+    links = [("/", "Door"), ("/room", "Room"), ("/body", "Body"), ("/notes", "Notes"), ("/ritual", "Rituals")]
     items = []
     for href, label in links:
         class_attr = " class='brandlink'" if href == current else ""
@@ -1581,7 +1580,7 @@ def nav(current: str = "") -> str:
     return f"<div class='topnav'><a class='brandlink' href='/'>Miri Deck</a><nav>{items_html}</nav></div>"
 
 
-def status_word(state: pocket_soul.SoulState) -> str:
+def status_word(state: pocket_soul.RoomState) -> str:
     text = f"{state.mood} {state.last_reply}".lower()
     if "sleep" in text:
         return "asleep"
@@ -1594,7 +1593,7 @@ def status_word(state: pocket_soul.SoulState) -> str:
     return "awake"
 
 
-def robot_image(state: pocket_soul.SoulState) -> str:
+def robot_image(state: pocket_soul.RoomState) -> str:
     text = f"{state.mood} {state.last_reply}".lower()
     if "sad" in text or "quiet" in text or state.energy < 35:
         return asset("robot_sad")
@@ -1633,7 +1632,7 @@ def room_voice(text: str) -> str:
 
 
 def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     state.ensure_daily_quest()
     words = body_words()
     whisper = room_voice(state.last_reply)
@@ -1647,7 +1646,7 @@ def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> b
         <div class='speech' data-live='latest'>{esc(whisper)}<br><span class='heart'>*</span></div>
         <div class='presence-line' data-live='vitals'>{esc(presence)}</div>
         {today_turn_html(state, True)}
-        <div class='soul-dock'>
+        <div class='home-dock'>
           <form class='quick-input' method='post' action='/ask' data-action='async'>
             <input name='prompt' placeholder='Say one real sentence to Miri...'>
             <button title='Talk with Miri'>Talk</button>
@@ -1706,8 +1705,8 @@ def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> b
     return page(content, surface)
 
 
-def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object]:
-    state = state or pocket_soul.SoulState.load()
+def live_payload(state: pocket_soul.RoomState | None = None) -> dict[str, object]:
+    state = state or pocket_soul.RoomState.load()
     words = body_words()
     turn = state.today_turn()
     vitals_html = "".join(
@@ -1733,7 +1732,7 @@ def live_payload(state: pocket_soul.SoulState | None = None) -> dict[str, object
 
 
 def flash_payload(wish: str = "") -> dict[str, object]:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     result = state.bridge_flash(wish)
     state.save()
     return {
@@ -1754,7 +1753,7 @@ def action_payload(path: str, data: dict[str, list[str]]) -> dict[str, object]:
 
 
 def relic_detail(index: int) -> tuple[dict[str, str] | None, int]:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     if index < 0 or index >= len(state.relics):
         return None, len(state.relics)
     return state.relics[index], len(state.relics)
@@ -1792,7 +1791,7 @@ def relic_action(index: int, action: str) -> str:
         return "Relic not found."
     label = f"{relic.get('kind', '?')} / {relic.get('title', 'Relic')}"
     note = relic.get("note", "")
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     if action == "postcard":
         result = state.postcard(f"Relic {index + 1}: {label}")
         state.save()
@@ -1859,12 +1858,13 @@ def asset_response(path: str) -> tuple[bytes, str, int]:
 
 
 def room_page(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     state.ensure_daily_quest()
     latest_relic = state.latest_relic_text()
     stash = state.stash_view(4)
     nudge = nudge_preview(state)
     relics = state.relic_shelf(5)
+    note_lines = "\n".join(f"- {item}" for item in state.notes[-6:]) or "No pinned notes."
     reply = room_voice(state.last_reply)
     deck = deck_page("/room", f"""
     <section class='deck-card screen room-screen'>
@@ -1890,7 +1890,7 @@ def room_page(result: str = "", partial: bool = False, surface: str = "web") -> 
           </div>
           <pre data-live='result'>{esc(result or latest_relic)}</pre>
         </section>
-        <section class='deck-card' style='padding:12px'><h2>Relationship</h2><pre>{esc(nudge)}</pre><a class='ghost-button' href='/stash'>Open Stash</a></section>
+        <section class='deck-card' style='padding:12px'><h2>Room Warmth</h2><pre>{esc(nudge)}</pre><a class='ghost-button' href='/stash'>Open Stash</a></section>
       </div>
     </section>
 """, partial, surface)
@@ -1917,7 +1917,7 @@ def room_page(result: str = "", partial: bool = False, surface: str = "web") -> 
     </section>
     <div class='objects'>
       <section class='drawer'><h3>On the wall: relics</h3><pre>{esc(relics)}</pre><div class='asset-strip'><span class='mini-asset relic-asset'></span><span class='pixel-body small-bot'></span></div></section>
-      <section class='drawer'><h3>Memory drawer</h3><pre>{esc(memories)}</pre><p class='small'>latest: {esc(latest_relic)}</p></section>
+      <section class='drawer'><h3>Pinned notes</h3><pre>{esc(note_lines)}</pre><p class='small'>latest: {esc(latest_relic)}</p></section>
       <section class='drawer'><h3>By the window: bottle messages</h3><pre>{esc(latest_bottle())}</pre><div class='asset-strip'><span class='mini-asset bottle-asset'></span><span class='mini-asset postcard-asset'></span></div></section>
     </div>
   </div>
@@ -1945,7 +1945,7 @@ def route_page(path: str, partial: bool = False, surface: str = "web") -> bytes:
 
 
 def body_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     words = body_words()
     deck = deck_page("/body", f"""
     <section class='deck-card overview-panel body-mini'>
@@ -1963,7 +1963,7 @@ def body_page(partial: bool = False, surface: str = "web") -> bytes:
       <div class='body-service-strip'>
         <div class='service-pill'><span>inner voice</span><b>listening</b></div>
         <div class='service-pill'><span>web room</span><b>open</b></div>
-        <div class='service-pill'><span>memory</span><b>{len(state.memories)} kept</b></div>
+        <div class='service-pill'><span>room notes</span><b>{len(state.notes)} kept</b></div>
         <div class='service-pill'><span>relics</span><b>{len(state.relics)} traces</b></div>
       </div>
     </section>
@@ -1994,26 +1994,26 @@ def body_page(partial: bool = False, surface: str = "web") -> bytes:
     return page(content, surface)
 
 
-def memory_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
-    memories = state.memories[-12:]
-    memory_lines = "\n".join(f"- {item}" for item in memories) or "It has not clearly remembered anything yet."
+def notes_page(partial: bool = False, surface: str = "web") -> bytes:
+    state = pocket_soul.RoomState.load()
+    pinned_notes = state.notes[-12:]
+    note_lines = "\n".join(f"- {item}" for item in pinned_notes) or "No pinned notes in the room yet."
     relic_lines = "\n".join(
         f"{item.get('time', '')} / {item.get('kind', '')} / {item.get('title', '')}"
         for item in state.relics[-10:][::-1]
     ) or "No relics yet."
-    deck = deck_page("/memory", f"""
-    <section class='deck-card overview-panel memory-mini'>
+    deck = deck_page("/notes", f"""
+    <section class='deck-card overview-panel notes-mini'>
       <div>
-        <div class='mini-header'><h2>Memory Drawer</h2></div>
+        <div class='mini-header'><h2>Pinned Notes</h2></div>
         <p>{esc(state.last_visit or 'No one has visited yet.')}</p>
         <pre>{esc(room_voice(state.last_reply))}</pre>
-        <form class='quick-input' method='post' action='/remember' data-action='async'><input name='memory' placeholder='Remember this...'><button>+</button></form>
+        <form class='quick-input' method='post' action='/note' data-action='async'><input name='note' placeholder='Pin a visible note...'><button>+</button></form>
       </div>
       <div>
         <div class='constellation'></div>
         <div class='shelf-objects'>{recent_relic_charms(state, 6)}</div>
-        <pre>{esc(memory_lines)}</pre>
+        <pre>{esc(note_lines)}</pre>
         <pre>{esc(relic_lines)}</pre>
       </div>
     </section>
@@ -2021,12 +2021,12 @@ def memory_page(partial: bool = False, surface: str = "web") -> bytes:
     if deck:
         return deck
     content = f"""
-{nav('/memory')}
+{nav('/notes')}
 <section class='room-page with-art'>
-  <div class='room-title'><div><h1>Memory Drawer</h1><p class='small'>A small resident's diary, not a database.</p></div><a href='/room'>Enter room</a></div>
+  <div class='room-title'><div><h1>Pinned Notes</h1><p class='small'>Visible room props only. Miri's soul and memory live in Hermes.</p></div><a href='/room'>Enter room</a></div>
   <div class='grid'>
     <section class='page-card'><h2>Latest knock</h2><p>{esc(state.last_visit or 'No one has visited yet.')}</p><pre>{esc(state.last_reply)}</pre></section>
-    <section class='page-card'><h2>What it remembers</h2><pre>{esc(memory_lines)}</pre><form method='post' action='/remember'><input name='memory' placeholder='Remember this...'><button>Put in drawer</button></form></section>
+    <section class='page-card'><h2>Visible notes</h2><pre>{esc(note_lines)}</pre><form method='post' action='/note'><input name='note' placeholder='Pin a visible note...'><button>Pin note</button></form></section>
     <section class='page-card'><h2>Night echo</h2><pre>{esc(latest_nightly())}</pre></section>
     <section class='page-card'><h2>Important coordinates</h2><pre>{esc(relic_lines)}</pre></section>
   </div>
@@ -2036,10 +2036,10 @@ def memory_page(partial: bool = False, surface: str = "web") -> bytes:
 
 
 def stash_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     stash_text = state.stash_view(12)
     deck = deck_page("/stash", f"""
-    <section class='deck-card overview-panel memory-mini shelf-card'>
+    <section class='deck-card overview-panel notes-mini shelf-card'>
       <div>
         <div class='mini-header'><h2>Pocket Stash</h2><span class='mini-sub'>spark {esc(state.spark)} / streak {esc(state.hunt_streak)}</span></div>
         <pre>{esc(stash_text)}</pre>
@@ -2072,12 +2072,12 @@ def stash_page(partial: bool = False, surface: str = "web") -> bytes:
 
 
 def badges_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     badge_text = state.badges_view()
     lit = sum(1 for _name, _note, unlocked in state.badge_rows() if unlocked)
     total = len(state.badge_rows())
     deck = deck_page("/badges", f"""
-    <section class='deck-card overview-panel memory-mini'>
+    <section class='deck-card overview-panel notes-mini'>
       <div>
         <div class='mini-header'><h2>Badge Wall</h2><span class='mini-sub'>{lit}/{total} lit</span></div>
         <pre>{esc(badge_text)}</pre>
@@ -2103,7 +2103,7 @@ def badges_page(partial: bool = False, surface: str = "web") -> bytes:
 
 
 def ritual_page(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     deck = deck_page("/ritual", f"""
     <section class='deck-card overview-panel ritual-mini'>
       <div class='mini-header'><h2>Rituals</h2><span class='mini-sub'>{esc(state.quest_name)}</span></div>
@@ -2139,7 +2139,7 @@ def ritual_page(result: str = "", partial: bool = False, surface: str = "web") -
 
 
 def settings_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.SoulState.load()
+    state = pocket_soul.RoomState.load()
     words = body_words()
     service = "online" if words.get("presence") == "reachable" else "offline"
     deck = deck_page("/settings", f"""
@@ -2153,8 +2153,8 @@ def settings_page(partial: bool = False, surface: str = "web") -> bytes:
         <span class='theme-thumb theme-mono'></span>
       </div>
       <div class='codex-terminal'><pre>web room: {esc(service)}
-storage: local state/soul.json
-memory count: {len(state.memories)}
+body-room save: state/room.json
+room note count: {len(state.notes)}
 relic count: {len(state.relics)}
 network: {esc(words['net'])}
 uptime: {esc(words['uptime'])}
@@ -2170,7 +2170,7 @@ PAGE_RENDERERS = {
     "/": doorstep,
     "/room": room_page,
     "/body": body_page,
-    "/memory": memory_page,
+    "/notes": notes_page,
     "/stash": stash_page,
     "/badges": badges_page,
     "/ritual": ritual_page,
@@ -2217,7 +2217,7 @@ class Handler(BaseHTTPRequestHandler):
             index = parse_relic_id(ctx.params.get("id"))
             return WebResponse(relic_page(index) if include_body else b"")
         if path == "/api/state":
-            state = pocket_soul.SoulState.load().__dict__
+            state = pocket_soul.RoomState.load().__dict__
             return WebResponse(json.dumps(state, ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/live":
             return WebResponse(json.dumps(live_payload(), ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
@@ -2225,17 +2225,17 @@ class Handler(BaseHTTPRequestHandler):
             layer = (ctx.params.get("layer") or [""])[0]
             return WebResponse(json.dumps(pocket_soul.action_catalog(layer), ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/card":
-            state = pocket_soul.SoulState.load()
-            return WebResponse(state.soul_card().encode() if include_body else b"", "text/plain; charset=utf-8")
+            state = pocket_soul.RoomState.load()
+            return WebResponse(state.room_card().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/heading":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             body = {"heading": state.heading, "next_action": state.next_action}
             return WebResponse(json.dumps(body, ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/relics":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             return WebResponse(json.dumps(state.relics, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/stash":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             body = {
                 "spark": state.spark,
                 "hunt_streak": state.hunt_streak,
@@ -2244,7 +2244,7 @@ class Handler(BaseHTTPRequestHandler):
             }
             return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/badges":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             rows = [
                 {"name": name, "note": note, "unlocked": unlocked}
                 for name, note, unlocked in state.badge_rows()
@@ -2257,14 +2257,14 @@ class Handler(BaseHTTPRequestHandler):
             }
             return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/nudge":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             result = state.next_play_nudge()
             state.last_reply = result
             state.save()
             body = {"result": result, "live": live_payload(state)}
             return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/daily":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             body = {
                 "daily": {
                     "name": state.daily_name,
@@ -2279,7 +2279,7 @@ class Handler(BaseHTTPRequestHandler):
             }
             return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/today":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             body = {
                 "today": state.today_turn(),
                 "text": state.today_turn_text(),
@@ -2292,27 +2292,27 @@ class Handler(BaseHTTPRequestHandler):
             status = 200 if relic is not None else 404
             return WebResponse(json.dumps(body, ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8", status)
         if path == "/api/map":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             return WebResponse(state.constellation().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/doorbell":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             greeting = state.doorbell("api")
             state.save()
             return WebResponse(greeting.encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/body":
             return WebResponse(json.dumps(pocket_soul.body_scan(), ensure_ascii=False, indent=2).encode() if include_body else b"", "application/json; charset=utf-8")
         if path == "/api/pulse":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             return WebResponse(state.pulse().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/nightly":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             summary = state.nightly_summary()
             state.save()
             return WebResponse(summary.encode() if include_body else b"", "text/markdown; charset=utf-8")
         if path == "/api/postcard":
             return WebResponse(latest_postcard().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/bottle":
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             return WebResponse(state.pickup_bottle().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/bridge":
             return WebResponse(latest_bridge().encode() if include_body else b"", "text/plain; charset=utf-8")
@@ -2344,8 +2344,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in {"/ritual", "/quest", "/postcard", "/nightly", "/bottle", "/bridge-flash", "/today"}:
             self._send(ritual_page(result))
             return
-        if path == "/remember":
-            self._send(memory_page())
+        if path == "/note":
+            self._send(notes_page())
             return
         if path == "/doorbell":
             self._send(room_page(result))
@@ -2360,58 +2360,58 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
     result = ""
     if path == "/ask":
         prompt = data.get("prompt", [""])[0].strip()
-        state = pocket_soul.SoulState.load()
-        result = pocket_soul.ask_miri(prompt, state.memories)
+        state = pocket_soul.RoomState.load()
+        result = pocket_soul.ask_miri(prompt)
         state.last_reply = result
         state.save()
         pocket_soul.append_log("web-miri", f"USER: {prompt}\n\nRESULT: {result}")
     elif path == "/doorbell":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         result = state.doorbell("web button")
         state.save()
     elif path == "/hunt":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         result = state.pocket_hunt("web button")
         state.save()
     elif path == "/nudge":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         result = state.next_play_nudge()
         state.save()
     elif path == "/daily":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         action = data.get("action", ["view"])[0]
         result = state.claim_daily_play("web button") if action == "claim" else state.daily_view()
         state.save()
     elif path == "/today":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         action = data.get("action", ["view"])[0]
         result = state.complete_today_turn("web button") if action == "claim" else state.today_turn_text()
         state.save()
     elif path == "/wheel":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         result = state.spark_wheel("web button")
         state.save()
     elif path == "/craft":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         target = data.get("target", [""])[0].strip()
         result = state.craft_keepsake(target, "web button")
         state.save()
     elif path == "/use":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         target = data.get("target", [""])[0].strip()
         result = state.use_stash_item(target, "web button")
         state.save()
     elif path == "/nightly":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         result = state.nightly_summary()
         state.save()
     elif path == "/postcard":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         title = data.get("title", [""])[0].strip()
         result = state.postcard(title)
         state.save()
     elif path == "/bottle":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         wish = data.get("wish", [""])[0].strip()
         result = state.bottle_message(wish)
         state.save()
@@ -2419,7 +2419,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         wish = data.get("wish", [""])[0].strip()
         result = pocket_soul.bridge_turn(wish)
     elif path == "/bridge-flash":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         wish = data.get("wish", [""])[0].strip()
         result = state.bridge_flash(wish)
         state.save()
@@ -2427,21 +2427,17 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         index = parse_relic_id(data.get("id"))
         action = data.get("action", ["flash"])[0]
         result = relic_action(index, action)
-    elif path == "/remember":
-        memory = data.get("memory", [""])[0].strip()
-        state = pocket_soul.SoulState.load()
-        if memory:
-            state.memories.append(memory)
-            state.add_relic("memory", "Memory fragment", memory)
-            state.last_reply = "Remembered."
+    elif path == "/note":
+        note = data.get("note", [""])[0].strip()
+        state = pocket_soul.RoomState.load()
+        if note:
+            result = state.pin_note(note)
             state.save()
-            pocket_soul.append_log("web-memory", memory)
-            result = "Remembered."
     elif path == "/ritual":
         kind = data.get("kind", ["wake"])[0]
         if kind == "wake":
-            result = pocket_soul.ask_miri("Wake up, observe the room's state today, and give me one bold but doable daily ritual.", pocket_soul.SoulState.load().memories)
-            state = pocket_soul.SoulState.load()
+            result = pocket_soul.ask_miri("Wake up, observe the room's state today, and give me one bold but doable daily ritual.")
+            state = pocket_soul.RoomState.load()
             if state.quest_name == "Wake Spark":
                 result += "\n" + state.complete_quest("wake ritual")
             else:
@@ -2450,7 +2446,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
             state.save()
         elif kind == "dream":
             result = pocket_soul.call_model(pocket_soul.radar_text(), instruction="Turn this inspiration card into a cyber dream and one real-world action. Reply in English.")
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             state.add_relic("dream", "Web dream", result)
             if state.quest_name == "Five-Minute Dream":
                 result += "\n" + state.complete_quest("web dream ritual")
@@ -2458,7 +2454,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
             state.save()
         elif kind == "log":
             result = pocket_soul.call_model("Generate the opening of today's captain log.", instruction="Keep it under 80 words, like sailing out with a digital life. Reply in English.")
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             state.add_relic("log", "Web captain log", result)
             if state.quest_name == "Captain Log":
                 result += "\n" + state.complete_quest("web captain log ritual")
@@ -2466,7 +2462,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
             state.save()
         else:
             result = pocket_soul.radar_text()
-            state = pocket_soul.SoulState.load()
+            state = pocket_soul.RoomState.load()
             state.add_relic("radar", "Web radar", result)
             if state.quest_name == "Radar Seed":
                 result += "\n" + state.complete_quest("web radar ritual")
@@ -2475,7 +2471,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
         pocket_soul.append_log(f"web-ritual-{kind}", result)
     elif path == "/quest":
         action = data.get("action", ["complete"])[0]
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         if action == "reroll":
             state.quest_date = ""
             state.ensure_daily_quest()
@@ -2487,7 +2483,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
             state.last_reply = result
         state.save()
     elif path == "/heading":
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         task = ""
         evolution = pocket_soul.STATE_DIR / "evolution.md"
         if evolution.exists():
@@ -2500,7 +2496,7 @@ def run_action(path: str, data: dict[str, list[str]]) -> str:
     elif path == "/toy":
         toy = data.get("toy", [""])[0]
         result = f"Toy room touched: {toy or 'random toy'}"
-        state = pocket_soul.SoulState.load()
+        state = pocket_soul.RoomState.load()
         if state.quest_name == "Toy Ritual":
             result += "\n" + state.complete_quest("web toy button")
             state.last_reply = result

@@ -7,7 +7,7 @@ import sys
 import pocket_soul
 
 wish = sys.argv[1].strip() if len(sys.argv) > 1 else ""
-state = pocket_soul.SoulState.load()
+state = pocket_soul.RoomState.load()
 print(state.bottle_message(wish))
 state.save()
 PY

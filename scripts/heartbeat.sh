@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 import pocket_soul
 
-state = pocket_soul.SoulState.load()
+state = pocket_soul.RoomState.load()
 now = datetime.now().strftime("%Y-%m-%d %H:%M")
 last_logs = ""
 logs = sorted(pocket_soul.LOG_DIR.glob("*.md"))

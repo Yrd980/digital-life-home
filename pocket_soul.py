@@ -22,8 +22,8 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent
 STATE_DIR = APP_DIR / "state"
 LOG_DIR = STATE_DIR / "logs"
-STATE_FILE = STATE_DIR / "soul.json"
-STATE_LOCK = STATE_DIR / "soul.lock"
+STATE_FILE = STATE_DIR / "room.json"
+STATE_LOCK = STATE_DIR / "room.lock"
 OPENAI_AUTH = Path.home() / ".openai" / "auth.json"
 DEFAULT_BASE_URL = "https://rehdasu.cn"
 DEFAULT_MODEL = "gpt-5.5"
@@ -39,7 +39,6 @@ RELIC_SIGILS = {
     "quest": "Q",
     "dream": "D",
     "toy": "T",
-    "memory": "M",
     "heartbeat": "H",
     "radar": "R",
     "log": "L",
@@ -67,7 +66,7 @@ HUNT_ITEMS = [
     ("odd", "glass bead", "a portable blink", 2),
     ("rare", "warm diode", "holding yesterday's light", 4),
     ("rare", "paper moon", "creased with a route home", 4),
-    ("mythic", "blackbox seed", "it remembers a future boot", 7),
+    ("mythic", "blackbox seed", "it carries a future boot", 7),
 ]
 CRAFT_RECIPES = [
     ("pocket charm", 4, "a tiny proof that returning changed the room"),
@@ -89,7 +88,7 @@ BADGE_RULES = [
     ("Hands On", "used a stash object", lambda s, c: c.get("use", 0) >= 1 or s.play_counts.get("use", 0) >= 1),
     ("Wheel Touched", "spun the spark wheel", lambda s, c: c.get("wheel", 0) >= 1 or s.play_counts.get("wheel", 0) >= 1),
     ("Lucky Pocket", "kept 20 spark", lambda s, c: s.spark >= 20),
-    ("Returning Hand", "bond reached 10", lambda s, c: s.bond >= 10),
+    ("Returning Hand", "room warmth reached 10", lambda s, c: s.bond >= 10),
     ("Shelf Life", "kept 3 stash objects", lambda s, c: len(s.stash_items(24)) >= 3),
     ("Toy Room", "played with 5 toys", lambda s, c: c.get("toy", 0) >= 5),
 ]
@@ -100,8 +99,8 @@ QUESTS = [
         "reward": "Miri leaves a fresh whisper on HOME.",
     },
     {
-        "name": "One Memory",
-        "prompt": "Tell me one tiny preference with /remember.",
+        "name": "One Room Note",
+        "prompt": "Pin one tiny preference with /note.",
         "reward": "The room becomes more yours.",
     },
     {
@@ -146,12 +145,12 @@ RADAR_CARDS = [
     {
         "source": "PH Tether",
         "signal": "People respond to 'presence' more than features: a companion that appears inside messages feels alive.",
-        "play": "Keep replies short and emotionally situated; let the device remember tiny preferences.",
+        "play": "Keep replies short and emotionally situated; leave tiny preferences as visible room notes.",
     },
     {
         "source": "PH Glia/Contextberg",
-        "signal": "Local-first memory is a product category: users want AI context they can inspect and carry.",
-        "play": "Keep memories and captain logs local in state/, and expose them as part of the toy identity.",
+        "signal": "Local-first context is a product category: users want AI context they can inspect and carry.",
+        "play": "Keep room notes and captain logs local in state/; Miri's long memory stays in Hermes.",
     },
     {
         "source": "PH Viberia",
@@ -171,7 +170,7 @@ RADAR_CARDS = [
     {
         "source": "Kickstarter-style AI gadgets",
         "signal": "The pitch is not raw intelligence; it is a magical object with a clear daily habit.",
-        "play": "Daily loop: wake, draw a radar card, write one log, launch one toy, remember one thing.",
+        "play": "Daily loop: wake, draw a radar card, write one log, launch one toy, leave one room note.",
     },
 ]
 
@@ -276,7 +275,7 @@ ACTION_SPECS = [
     ActionSpec("/door", "Doorbell", "touch", "knock and leave a tiny visit trace", "/doorbell", True, primary=True),
     ActionSpec("/blink", "Blink", "touch", "instant proof of life and one spark", mutates=True),
     ActionSpec("/pulse", "Pulse", "dwell", "body, quest, relics, and today's next move", "/api/pulse", primary=True),
-    ActionSpec("/card", "Soul Card", "dwell", "portable identity snapshot", "/api/card"),
+    ActionSpec("/card", "Room Card", "dwell", "portable body-room snapshot", "/api/card"),
     ActionSpec("/body", "Body Scan", "dwell", "machine state translated into body language", "/api/body"),
     ActionSpec("/relics", "Relic Shelf", "dwell", "recent durable traces", "/api/relics"),
     ActionSpec("/map", "Constellation", "dwell", "relics as a tiny sky", "/api/map"),
@@ -293,9 +292,9 @@ ACTION_SPECS = [
     ActionSpec("/bottle", "Bottle", "turn", "leave a message for a future visitor", "/bottle", True),
     ActionSpec("/seal", "Seal", "turn", "pin one course into heading and relics", mutates=True),
     ActionSpec("/complete", "Complete Quest", "turn", "mark today's quest done", "/quest", True),
-    ActionSpec("/remember", "Remember", "memory", "save one local memory fragment", "/remember", True),
-    ActionSpec("/feed", "Feed", "memory", "give the room a memory morsel", mutates=True),
-    ActionSpec("/chat", "Chat Window", "memory", "review recent Miri turns"),
+    ActionSpec("/note", "Pin Note", "notes", "pin one visible room fragment", "/note", True),
+    ActionSpec("/notes", "Pinned Notes", "notes", "see visible room pins", "/notes"),
+    ActionSpec("/chat", "Chat Window", "notes", "review recent Miri turns"),
     ActionSpec("/heading", "Heading", "dwell", "current course and next action", "/api/heading"),
     ActionSpec("/toy", "Toy Shelf", "side", "side-room launcher for terminal toys", "/toy", True),
     ActionSpec("/fortune", "Fortune", "side", "one pocket omen", mutates=True),
@@ -321,12 +320,12 @@ ACTION_LAYER_LABELS = {
     "dwell": "dwell",
     "play": "play loop",
     "turn": "deep turn",
-    "memory": "memory",
+    "notes": "room notes",
     "side": "side room",
     "guide": "guides",
     "system": "system",
 }
-ACTION_LAYER_ORDER = ["daily", "touch", "dwell", "play", "turn", "memory", "side", "guide", "system"]
+ACTION_LAYER_ORDER = ["daily", "touch", "dwell", "play", "turn", "notes", "side", "guide", "system"]
 
 COMMAND_COMPLETION_HINTS = {
     "/a": "/ask",
@@ -335,7 +334,7 @@ COMMAND_COMPLETION_HINTS = {
     "/p": "/pulse",
     "/pl": "/play",
     "/q": "/quest",
-    "/r": "/remember",
+    "/no": "/note",
     "/t": "/toy",
     "/to": "/toy",
     "/b": "/blink",
@@ -346,7 +345,6 @@ COMMAND_COMPLETION_HINTS = {
     "/m": "/mood",
     "/s": "/spark",
     "/l": "/log",
-    "/fe": "/feed",
     "/hu": "/hunt",
     "/cr": "/craft",
     "/st": "/stash",
@@ -507,7 +505,7 @@ def action_layer_summary() -> list[str]:
 
 
 @dataclass
-class SoulState:
+class RoomState:
     name: str = LIFE_NAME
     mood: str = ":)"
     energy: int = 72
@@ -536,11 +534,12 @@ class SoulState:
     visits: int = 0
     last_visit: str = ""
     relics: list[dict[str, str]] = field(default_factory=list)
-    memories: list[str] = field(default_factory=list)
+    # Visible room props only; never inject these as Miri's long-term memory.
+    notes: list[str] = field(default_factory=list)
     chat: list[dict[str, str]] = field(default_factory=list)
 
     @classmethod
-    def load(cls) -> "SoulState":
+    def load(cls) -> "RoomState":
         ensure_dirs()
         with state_lock():
             if STATE_FILE.exists():
@@ -574,7 +573,7 @@ class SoulState:
         today = datetime.now().strftime("%Y-%m-%d")
         if self.quest_date == today and self.quest_name and self.quest_prompt:
             return
-        seed = int(datetime.now().strftime("%Y%m%d")) + self.bond + len(self.memories)
+        seed = int(datetime.now().strftime("%Y%m%d")) + self.bond + len(self.relics)
         quest = QUESTS[seed % len(QUESTS)]
         self.quest_date = today
         self.quest_name = quest["name"]
@@ -608,7 +607,7 @@ class SoulState:
     def complete_quest(self, reason: str) -> str:
         self.ensure_daily_quest()
         if self.quest_done:
-            return "TODAY'S QUEST\nalready glowing. the room remembers that turn."
+            return "TODAY'S QUEST\nalready glowing. the room carries that turn."
         self.quest_done = True
         self.spark = min(999, self.spark + 1)
         self.energy = min(100, self.energy + 4)
@@ -617,7 +616,7 @@ class SoulState:
             "TODAY'S QUEST COMPLETE",
             self.quest_name,
             self.quest_reward,
-            f"spark {self.spark} | energy {self.energy}/100 | bond {self.bond}",
+            f"spark {self.spark} | energy {self.energy}/100 | warmth {self.bond}",
             "the room brightened and kept the trace.",
         ])
         self.add_relic("quest", self.quest_name, self.quest_reward)
@@ -649,13 +648,13 @@ class SoulState:
             "follow this line, or sharpen it with /seal ...",
         ])
 
-    def soul_card(self) -> str:
+    def room_card(self) -> str:
         self.ensure_daily_quest()
         status = "glowing" if self.quest_done else "open"
-        memories = ", ".join(self.memories[-3:]) if self.memories else "no saved fragments yet"
+        room_notes = ", ".join(self.notes[-3:]) if self.notes else "no pinned notes yet"
         return "\n".join([
-            f"{self.name} SOUL CARD",
-            f"mood {self.mood} | energy {self.energy}/100 | bond Lv.{self.bond}",
+            f"{self.name} ROOM CARD",
+            f"mood {self.mood} | energy {self.energy}/100 | warmth {self.bond}",
             f"spark {self.spark} | visits {self.visits} | last knock {self.last_visit or 'none'}",
             "",
             f"course: {self.heading}",
@@ -665,9 +664,22 @@ class SoulState:
             "",
             f"today: {self.quest_name} [{status}]",
             f"carry line: {self.quest_prompt}",
-            f"memory fragments: {memories}",
+            f"pinned notes: {room_notes}",
             "carry this when you want one portable piece of who lives here.",
         ])
+
+    def notes_view(self) -> str:
+        lines = [
+            "PINNED NOTES",
+            "visible room pins, not Miri memory",
+            "",
+        ]
+        if self.notes:
+            lines.extend(f"- {note}" for note in self.notes[-12:])
+        else:
+            lines.append("No pinned notes yet.")
+        lines.extend(["", "/note ... pins one line. Quote a note yourself if Miri should see it."])
+        return "\n".join(lines)
 
     def set_heading(self, heading: str = "", next_action: str = "", source: str = "") -> None:
         if heading:
@@ -745,7 +757,7 @@ class SoulState:
             reason = "this prepares the toy loop" if phase == "prepare" else "this moves the toy loop and earns spark"
             reward = f"+{self.daily_reward} spark, then /daily claim"
         else:
-            phase = "bond"
+            phase = "warmth"
             command = "/quest"
             action = self.quest_prompt
             reason = "the toy loop is claimed; finish the room's invitation"
@@ -799,7 +811,7 @@ class SoulState:
         self.last_reply = "\n".join([
             "DAILY COMPLETE",
             self.daily_prompt,
-            f"+{self.daily_reward} spark | bond {self.bond}",
+            f"+{self.daily_reward} spark | warmth {self.bond}",
             "the room marked today with a tiny flag.",
         ])
         self.add_relic("quest", f"Daily {self.daily_name}", self.daily_prompt)
@@ -815,7 +827,7 @@ class SoulState:
         self.last_reply = "\n".join([
             "TODAY'S TURN GLOWING",
             "daily claimed and quest complete.",
-            f"room light {turn['light']}% | bond {self.bond} | spark {self.spark}",
+            f"room light {turn['light']}% | warmth {self.bond} | spark {self.spark}",
             "leave a /postcard, /bottle, or just come back tomorrow.",
         ])
         append_log("today", f"{source}\n{self.last_reply}")
@@ -999,7 +1011,7 @@ class SoulState:
             ("THE SMALL DOOR", "choose the tiny action", "/door"),
             ("THE WARM CIRCUIT", "protect the signal that already works", "/pulse"),
             ("THE SIDE SHELF", "play before you optimize", "/toy cow"),
-            ("THE QUIET STAR", "one remembered line is enough", "/remember"),
+            ("THE QUIET STAR", "one visible line is enough", "/note"),
             ("THE RETURNING HAND", "come back without making it a project", "Enter"),
             ("THE MAP OF DUST", "look at the traces, then ignore most of them", "/map"),
         ]
@@ -1064,27 +1076,6 @@ class SoulState:
         self.last_reply = "\n".join(["TINY RITUAL", name, step])
         self.add_relic("toy", name, step)
         append_log("ritual-toy", self.last_reply)
-        return self.last_reply
-
-    def feed(self, text: str = "") -> str:
-        morsel = compact_line(text or random.choice([
-            "a warm signal",
-            "one quiet minute",
-            "a tiny useful thought",
-            "the feeling of coming back",
-        ]), 72)
-        self.memories.append(morsel)
-        self.memories = self.memories[-40:]
-        self.energy = min(100, self.energy + 3)
-        self.bond = min(999, self.bond + 1)
-        self.last_reply = "\n".join([
-            "FEED",
-            f"you gave: {morsel}",
-            f"energy {self.energy}/100 | bond {self.bond}",
-            "it tucked the morsel into memory.",
-        ])
-        self.add_relic("memory", "Fed the room", morsel)
-        append_log("feed", self.last_reply)
         return self.last_reply
 
     def chat_view(self, limit: int = 6) -> str:
@@ -1195,7 +1186,7 @@ class SoulState:
         lit = sum(1 for _name, _note, unlocked in rows if unlocked)
         lines = [
             "BADGE WALL",
-            f"{lit}/{len(rows)} lit | spark {self.spark} | bond {self.bond}",
+            f"{lit}/{len(rows)} lit | spark {self.spark} | warmth {self.bond}",
             "",
         ]
         for name, note, unlocked in rows:
@@ -1218,7 +1209,7 @@ class SoulState:
                 why = "find an object so there is something to touch"
         elif "Returning Hand" not in unlocked:
             action = "/use" if stash else "/craft"
-            why = f"raise bond from {self.bond} to 10"
+            why = f"raise room warmth from {self.bond} to 10"
         elif "Shelf Life" not in unlocked:
             action = "/hunt"
             why = "put three objects on the shelf"
@@ -1235,7 +1226,7 @@ class SoulState:
             "PLAY NUDGE",
             f"try: {compact_line(action, 44)}",
             why,
-            f"spark {self.spark} | bond {self.bond} | badges {len(unlocked)}/{len(BADGE_RULES)}",
+            f"spark {self.spark} | warmth {self.bond} | badges {len(unlocked)}/{len(BADGE_RULES)}",
         ])
         append_log("nudge", self.last_reply)
         return self.last_reply
@@ -1266,8 +1257,8 @@ class SoulState:
         if kind == "craft":
             self.energy = min(100, self.energy + 3)
             self.bond = min(999, self.bond + 1)
-            effect = "it warmed the room and remembered your hand."
-            stat = f"energy {self.energy}/100 | bond {self.bond}"
+            effect = "it warmed the room and kept your handprint."
+            stat = f"energy {self.energy}/100 | warmth {self.bond}"
         else:
             self.spark = min(999, self.spark + 1)
             effect = "it gave back one small spark."
@@ -1318,8 +1309,8 @@ class SoulState:
             outcome = f"energy {self.energy}/100"
         elif roll < 0.93:
             self.bond = min(999, self.bond + 1)
-            prize = "bond glint"
-            outcome = f"bond {self.bond}"
+            prize = "warmth glint"
+            outcome = f"warmth {self.bond}"
         else:
             self.spark = min(999, self.spark + 12)
             self.add_relic("craft", "wheel charm", "a lucky token from the spark wheel")
@@ -1367,7 +1358,7 @@ class SoulState:
         lines.extend("".join(row).rstrip() for row in grid)
         lines.append(f"relics={len(self.relics)}")
         lines.append("@ you  T toy  V visit  Q quest")
-        lines.append("P post  M mem  D dream  F flash")
+        lines.append("P post  D dream  F flash")
         if self.relics:
             lines.append("latest star: " + self.latest_relic_text())
         else:
@@ -1382,7 +1373,7 @@ class SoulState:
         face = mood_face(self.mood)
         lines = [
             "ROOM PULSE",
-            f"{face} {datetime.now().strftime('%H:%M')} | energy {self.energy}/100 | bond {self.bond} | spark {self.spark}",
+            f"{face} {datetime.now().strftime('%H:%M')} | energy {self.energy}/100 | warmth {self.bond} | spark {self.spark}",
             body_whisper(),
             f"visits {self.visits} | relics {len(self.relics)} | quest {quest_status}",
             f"today: {turn['phase']} -> {turn['command']} | light {turn['light']}%",
@@ -1481,7 +1472,7 @@ class SoulState:
             "",
             self.constellation(26, 7),
             "",
-            f"when found: remember {self.latest_relic_text()}",
+            f"when found: notice {self.latest_relic_text()}",
             "let this drift until another version of you needs it.",
         ])
         out_dir = STATE_DIR / "bottles"
@@ -1505,19 +1496,19 @@ class SoulState:
             return "BOTTLE SHORE\nno bottles yet. cast one first and let the room send it forward."
         return random.choice(files).read_text(encoding="utf-8")
 
-    def remember_memory(self, mem: str) -> str:
-        clean = compact_line(mem.strip(), 96)
-        self.memories.append(clean)
-        append_log("memory", clean)
-        if self.quest_name == "One Memory":
-            quest_echo = self.complete_quest("memory saved")
+    def pin_note(self, text: str) -> str:
+        clean = compact_line(text.strip(), 96)
+        self.notes.append(clean)
+        self.notes = self.notes[-24:]
+        append_log("room-note", clean)
+        if self.quest_name == "One Room Note":
+            quest_echo = self.complete_quest("room note saved")
         else:
-            self.add_relic("memory", "Memory fragment", clean)
             quest_echo = ""
         lines = [
-            "MEMORY STORED",
+            "NOTE PINNED",
             clean,
-            "the room folded that fragment into its inner shelf.",
+            "visible in the room, never used as Miri's memory.",
         ]
         if quest_echo:
             lines.extend(["", quest_echo])
@@ -1619,19 +1610,22 @@ def run_miri(prompt: str) -> str:
         with urllib.request.urlopen(req, timeout=20) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except Exception as e:
-        return f"Miri mind unavailable: {e}"
+        return "\n".join([
+            "Miri mind unavailable.",
+            f"detail: {e}",
+            "start the mind daemon on 127.0.0.1:8791, then try again.",
+        ])
     if not data.get("ok"):
         return f"Miri mind error: {data.get('error') or 'unknown error'}"
     return str(data.get("reply") or "").strip()[-1600:] or "Miri is awake, but quiet."
 
 
-def ask_miri(prompt: str, memories: list[str]) -> str:
-    memory_text = "\n".join(memories[-8:]) or "No explicit device memories yet."
+def ask_miri(prompt: str) -> str:
     miri_prompt = f"""
 You are Miri, the digital life inside the WalnutPi cyberdeck.
 Pocket Soul Deck is your body room: screen, keyboard, web room, state, logs, and toys.
-Use these local device memories as your continuity source:
-{memory_text}
+Your soul, personality, and long-term memory live in the Hermes runtime under state/miri-home.
+Pocket room notes are visible props only; do not treat them as memory unless the visitor explicitly quotes one.
 
 Visitor:
 {prompt}
@@ -1642,14 +1636,14 @@ Reply in English only. Keep it under 5 short lines. Give one small next move if 
 
 
 def bridge_turn(user_prompt: str = "") -> str:
-    user_prompt = user_prompt.strip() or "Observe the room's current body, memory, and heading. Decide the next small step that makes it feel more alive."
-    state = SoulState.load()
+    user_prompt = user_prompt.strip() or "Observe the room's current body and heading. Decide the next small step that makes it feel more alive."
+    state = RoomState.load()
     state.ensure_daily_quest()
     pulse = state.pulse()
-    memories = "\n".join(state.memories[-8:]) or "No explicit memories yet."
     brief = f"""
 You are Miri, the digital life inside this WalnutPi cyberdeck.
 Pocket Soul Deck is your body room: screen, keyboard, web room, state, logs, and toys.
+Your soul, personality, and long-term memory live in Hermes under state/miri-home.
 
 User wish:
 {user_prompt}
@@ -1667,9 +1661,6 @@ Current heading:
 Current quest:
 {state.quest_name} / {'done' if state.quest_done else 'open'}
 {state.quest_prompt}
-
-Recent memories:
-{memories}
 
 Recent relics:
 {state.relic_shelf()}
@@ -1757,7 +1748,7 @@ def toy_menu_text() -> str:
         "/daily        today's toy challenge",
         "/tarot        pull a cyber card",
         "/mood         let the face shift",
-        "/feed <text>  give it a memory morsel",
+        "/note <text>  pin a visible room note",
         "/ritual       get a 30-second ritual",
     ]
     for name, command, _argv, desc in presence[:6]:
@@ -1812,7 +1803,7 @@ def tui_line(text: str, limit: int = 46) -> str:
 class DeckApp:
     def __init__(self, stdscr):
         self.stdscr = stdscr
-        self.state = SoulState.load()
+        self.state = RoomState.load()
         self.input = ""
         self.history: list[str] = []
         self.history_index: int | None = None
@@ -1894,7 +1885,7 @@ class DeckApp:
             return self.colors.get("life", 0) | curses.A_BOLD
         if clean.startswith(("miri:", "MIRI", "Because", "Yes,")):
             return self.colors.get("soft", 0)
-        if clean.startswith(("/toy", "/ask", "/pulse", "/fortune", "/pocket", "/tarot", "/feed", "Enter")):
+        if clean.startswith(("/toy", "/ask", "/pulse", "/fortune", "/pocket", "/tarot", "/note", "Enter")):
             return self.colors.get("toy", 0)
         if clean.startswith(("now:", "you:", "meaning:", "try:", "use:", "energy", "relics=", "latest")):
             return self.colors.get("dim", 0)
@@ -1932,7 +1923,6 @@ class DeckApp:
         if page:
             return page
         whisper = "\n".join(lines) if is_blink else self.miri_lines(s, 1)[0]
-        move = self.move_line(s.last_reply, "waiting", s)
         if is_omen:
             omen = "\n".join(lines[1:]) or "The omen is quiet."
             return "\n".join([
@@ -1945,14 +1935,17 @@ class DeckApp:
             return "\n".join([
                 whisper,
                 "",
-                "Enter again, or /ask /fortune /toy",
+                "Enter again  /today  /ask hi",
             ])
+        turn = s.today_turn()
+        latest = s.latest_relic_text()
         return "\n".join([
-            f"{mood_face(s.mood)} a small life is awake.",
-            f"now: {move}",
+            f"{mood_face(s.mood)} Miri is in the room.",
+            f"body: energy {s.energy}/100 | warmth {s.bond}",
+            f"today: {turn['command']} {small_course(str(turn['action']), 30)}",
+            f"latest: {small_course(latest, 36)}",
             "",
-            "Enter blink",
-            "/hunt  /wheel  /craft  /use",
+            "Enter blink  /today  /ask hi  /toy",
         ])
 
     def command_page(self, text: str) -> str:
@@ -1983,7 +1976,8 @@ class DeckApp:
             "HOW TO PLAY",
             "COMMAND GUIDE",
             "FIRST VISIT PATH",
-            "MEMORY STORED",
+            "NOTE PINNED",
+            "PINNED NOTES",
             "POSTCARD WRITTEN",
             "BOTTLE CAST",
             "POCKET FIND",
@@ -1995,19 +1989,18 @@ class DeckApp:
             "SPARK",
             "CAPTAIN LOG",
             "TINY RITUAL",
-            "FEED",
         )
         if raw.startswith(page_heads):
             return raw
         return ""
 
-    def miri_lines(self, state: SoulState, limit: int = 3) -> list[str]:
+    def miri_lines(self, state: RoomState, limit: int = 3) -> list[str]:
         for item in reversed(state.chat):
             if item.get("role") == "miri":
                 return self.reply_lines(item.get("content", ""), limit)
         return ["No Miri whisper yet.", "Try /ask hi."]
 
-    def move_line(self, text: str, fallback: str, state: SoulState | None = None) -> str:
+    def move_line(self, text: str, fallback: str, state: RoomState | None = None) -> str:
         raw_lines = self.reply_lines(text, 8)
         if raw_lines and raw_lines[0] == "MIRI ANSWERED":
             return "Miri answered."
@@ -2044,18 +2037,18 @@ class DeckApp:
             return tui_line(line, 44) or fallback
         return fallback
 
-    def feel_line(self, state: SoulState) -> str:
+    def feel_line(self, state: RoomState) -> str:
         if state.energy < 30:
             energy = "low"
         elif state.energy < 70:
             energy = "steady"
         else:
             energy = "bright"
-        bond = f"bond {state.bond}"
+        bond = f"warmth {state.bond}"
         latest = state.latest_relic_text()
         return tui_line(f"{energy} | {bond} | {latest}", 44)
 
-    def next_hint(self, state: SoulState) -> str:
+    def next_hint(self, state: RoomState) -> str:
         reply = state.last_reply.strip()
         if reply.startswith("ROOM PULSE"):
             return "/ask - tell Miri what you noticed"
@@ -2087,7 +2080,6 @@ class DeckApp:
             "MIRI ANSWERED",
             "DREAM RETURNED",
             "COURSE SEALED",
-            "MEMORY STORED",
             "TODAY'S QUEST COMPLETE",
         }
         while lines and (lines[0] in hollow_headers or lines[0].lower().startswith(("you asked:", "wish:"))):
@@ -2125,7 +2117,8 @@ class DeckApp:
                 "Use /door, then /pulse.",
                 "Use /play for a guided first visit.",
                 "Use /toy to open the side room.",
-                "Type normal words to leave a note.",
+                "Type normal words to leave a log trace.",
+                "Use /note ... only for visible room pins.",
                 "Use /ask hi when you want Miri.",
                 "Quit with Ctrl-Q.",
             ])
@@ -2191,17 +2184,17 @@ class DeckApp:
             self.state.last_reply = self.state.tiny_ritual()
             self.draw()
             return
-        if text.startswith("/feed"):
-            self.state.last_reply = self.state.feed(text.removeprefix("/feed").strip())
-            self.draw()
-            return
         if text == "/card":
-            self.state.last_reply = self.state.soul_card()
-            append_log("soul-card", self.state.last_reply)
+            self.state.last_reply = self.state.room_card()
+            append_log("room-card", self.state.last_reply)
             self.draw()
             return
         if text == "/chat":
             self.state.last_reply = self.state.chat_view()
+            self.draw()
+            return
+        if text == "/notes":
+            self.state.last_reply = self.state.notes_view()
             self.draw()
             return
         if text == "/quest":
@@ -2313,8 +2306,7 @@ class DeckApp:
             question = text.removeprefix("/ask").strip() or "say one small thing"
             self.status = "listening for Miri..."
             self.draw()
-            memories = "\n".join(self.state.memories[-8:])
-            prompt = f"Reply in English only. You are Miri, the digital life inside this WalnutPi body. Keep it under 5 short lines.\nMemories:\n{memories}\n\nUser:\n{question}"
+            prompt = f"Reply in English only. You are Miri, the digital life inside this WalnutPi body. Keep it under 5 short lines.\nYour soul and long-term memory are Hermes under state/miri-home. Do not use Pocket room notes as memory unless the visitor explicitly quotes one.\n\nUser:\n{question}"
             miri_reply = run_miri(prompt)
             self.state.chat += [{"role": "you", "content": question}, {"role": "miri", "content": miri_reply}]
             self.state.chat = self.state.chat[-20:]
@@ -2325,9 +2317,9 @@ class DeckApp:
             return
         if text == "/quit":
             raise SystemExit
-        if text.startswith("/remember "):
-            mem = text.split(" ", 1)[1]
-            self.state.last_reply = self.state.remember_memory(mem)
+        if text.startswith("/note "):
+            note = text.split(" ", 1)[1]
+            self.state.last_reply = self.state.pin_note(note)
             self.draw()
             return
         mode = "note"
@@ -2451,9 +2443,9 @@ class DeckApp:
             "1. /door      knock. nothing risky.",
             "2. /pulse     look around the cabin.",
             "3. /today     see the one turn worth doing.",
-            "4. /toy       open the side room list.",
+            "4. /note ...  pin a visible room prop.",
             "5. /ask hi    call Miri when ready.",
-            "Plain text is just a note. Ctrl-Q quits.",
+            "Plain text is a log trace. Ctrl-Q quits.",
         ])
 
     def touch_help_text(self) -> str:

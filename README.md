@@ -53,7 +53,7 @@ Runtime state is local and ignored by git:
 
 `pocket_soul.py` is the body core: state model, TUI, body scan, rituals, toys, and `run_miri()` / `ask_miri()` entrypoints. Its saved `notes` list is a visible pinboard for the room and is never injected as Miri's memory; quote a note yourself when you want Miri to see it in one turn.
 
-`pocket_web.py` is the web room. It calls the same body core and the same Miri mind daemon.
+`pocket_web.py` is the web room. It calls the same body core and the same Miri mind daemon; HTML shells/pages, CSS, and browser JS live under `asset/templates/` and `asset/surfaces/`.
 
 `scripts/*.sh` are reusable body organs. Add new abilities as scripts first, then expose them through the TUI/web/action catalog.
 

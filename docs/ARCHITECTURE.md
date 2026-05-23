@@ -38,10 +38,26 @@ The WalnutPi TUI should feel like a small body, not a command catalog. HOME shou
 
 - Enter: blink, a light touch that proves the room is alive
 - `/today`: the one turn worth doing now
+- `/today claim`: close the current daily step or room invitation
 - `/ask hi`: call Miri's Hermes mind
+- `/pulse`: look around the body-room
 - `/toy`: step into the side room
 
+`/today` is the only visible daily loop. It may point at a toy action, a room invitation, or a carry-away trace, but the closure path is always `/today claim`. Older internal pieces such as daily play, quest completion, badges, raw mood/spark nudges, body scans, relic maps, and export rituals can still exist as organs or side rooms, but they should not compete with HOME or `/help`.
+
 Notes are pinned room props. They can be seen in TUI/web as a tiny pinboard, but they are not Miri memory and must not be pushed into prompts as background context. If a visitor wants Miri to react to a note, the visitor quotes that note in the turn.
+
+## Web Shape
+
+`pocket_web.py` owns routes, state reads, action handling, and small dynamic components. Static surface structure lives outside Python:
+
+- shell templates: `asset/templates/*-shell.html`
+- page body templates: `asset/templates/pages/*.html`
+- shared CSS: `asset/surfaces/common.css`
+- surface overrides: `asset/surfaces/web.css` and `asset/surfaces/board.css`
+- browser behavior: `asset/surfaces/pocket-room.js`
+
+Keep HTML/CSS/JS split unless a value is truly dynamic device state.
 
 ## Extension Points
 

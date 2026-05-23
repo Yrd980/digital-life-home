@@ -1,0 +1,14 @@
+    <section class='deck-card overview-panel notes-mini'>
+      <div>
+        <div class='mini-header'><h2>Pinned Notes</h2></div>
+        <p>{last_visit}</p>
+        <pre>{room_voice}</pre>
+        <form class='quick-input' method='post' action='/note' data-action='async'><input name='note' placeholder='Pin a visible note...'><button>+</button></form>
+      </div>
+      <div>
+        <div class='constellation'></div>
+        <div class='shelf-objects'>{recent_relic_charms}</div>
+        <pre>{note_lines}</pre>
+        <pre>{relic_lines}</pre>
+      </div>
+    </section>

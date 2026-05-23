@@ -1,0 +1,38 @@
+{nav}
+<section class='room-page with-art'>
+  <div class='room-title'>
+    <div><h1>Miri's Room</h1><p class='small'>You are visiting the small resident.</p></div>
+    <a href='/'>Back to door</a>
+  </div>
+  <div class='room-layout'>
+    <div class='objects'>
+      <section class='corner'><h3>On the desk: today's postcard</h3><pre>{latest_postcard}</pre></section>
+      <section class='corner'><h3>On the floor: quest trail</h3><p>{quest_name}</p><p class='small'>{quest_prompt}</p></section>
+    </div>
+    <section class='center-body'>
+      <div>
+        <div class='pixel-body' aria-label='{mood_face}'></div>
+        <p class='room-note'>mood: {mood}</p>
+        <p class='room-note'>{last_reply}</p>
+      </div>
+    </section>
+    <div class='objects'>
+      <section class='drawer'><h3>On the wall: relics</h3><pre>{relics}</pre><div class='asset-strip'><span class='mini-asset relic-asset'></span><span class='pixel-body small-bot'></span></div></section>
+      <section class='drawer'><h3>Pinned notes</h3><pre>{note_lines}</pre><p class='small'>latest: {latest_relic}</p></section>
+      <section class='drawer'><h3>By the window: bottle messages</h3><pre>{latest_bottle}</pre><div class='asset-strip'><span class='mini-asset bottle-asset'></span><span class='mini-asset postcard-asset'></span></div></section>
+    </div>
+  </div>
+  <div class='bottom-sill'>
+    <form class='talk-row' method='post' action='/ask' data-action='async'>
+      <input name='prompt' placeholder='Leave a sentence at the door...'>
+      <button>Speak softly</button>
+      <a class='soft-button' href='/ritual'>Rituals</a>
+    </form>
+    <form class='talk-row' method='post' action='/bridge-flash' data-action='flash'>
+      <input name='wish' placeholder='Give the room a small touch...'>
+      <button>Touch</button>
+      <a class='soft-button' href='/ritual'>Rituals</a>
+    </form>
+    <section class='page-card result'><h2>Echo</h2><pre data-live='result'>{result}</pre></section>
+  </div>
+</section>

@@ -1,0 +1,6 @@
+<section class='hero'>
+  <div class='row'><div class='face'>{sigil}</div><div><h1>{title}</h1><p><span class='badge'>{kind}</span></p><p class='small'>{time}</p></div></div>
+</section>
+<section class='card'><h2>Note</h2><pre>{note}</pre></section>
+<section class='card'><h2>Reuse</h2><form method='post' action='/relic-action'><input type='hidden' name='id' value='{index}'><input type='hidden' name='label' value='{action_label}'><div class='row'><button name='action' value='postcard'>Postcard</button><button name='action' value='bottle'>Bottle</button><button name='action' value='flash'>Flash</button></div></form></section>
+<section class='card'><h2>Trail</h2><p class='row'>{prev_link} <a href='/'>Home</a> {next_link}</p><p class='small'>Relic {display_index} of {total}</p></section>

@@ -271,42 +271,20 @@ class ActionSpec:
 
 ACTION_SPECS = [
     ActionSpec("/today", "Today's Turn", "daily", "one current action, reward, and room-light progress", "/today", True, primary=True),
-    ActionSpec("/daily", "Daily Play", "daily", "toy-loop progress and claim status", "/daily", True),
     ActionSpec("/door", "Doorbell", "touch", "knock and leave a tiny visit trace", "/doorbell", True, primary=True),
-    ActionSpec("/blink", "Blink", "touch", "instant proof of life and one spark", mutates=True),
     ActionSpec("/pulse", "Pulse", "dwell", "body, quest, relics, and today's next move", "/api/pulse", primary=True),
-    ActionSpec("/card", "Room Card", "dwell", "portable body-room snapshot", "/api/card"),
-    ActionSpec("/body", "Body Scan", "dwell", "machine state translated into body language", "/api/body"),
-    ActionSpec("/relics", "Relic Shelf", "dwell", "recent durable traces", "/api/relics"),
-    ActionSpec("/map", "Constellation", "dwell", "relics as a tiny sky", "/api/map"),
-    ActionSpec("/stash", "Pocket Stash", "play", "hunt and craft objects kept on the shelf", "/stash"),
     ActionSpec("/hunt", "Hunt", "play", "find an object and gain spark", "/hunt", True, primary=True),
     ActionSpec("/use", "Use", "play", "touch the newest stash item", "/use", True),
     ActionSpec("/craft", "Craft", "play", "spend spark on a keepsake", "/craft", True),
     ActionSpec("/wheel", "Spark Wheel", "play", "spend spark on a quick chance", "/wheel", True),
-    ActionSpec("/badges", "Badges", "play", "see long-term unlocks", "/badges"),
-    ActionSpec("/nudge", "Nudge", "play", "pick the next playful move", "/nudge", True),
+    ActionSpec("/stash", "Pocket Stash", "play", "inspect shelf objects", "/stash"),
     ActionSpec("/ask", "Ask Miri", "turn", "call the resident life when meaning is needed", "/ask", True, True, True),
-    ActionSpec("/dream", "Dream", "turn", "one omen or five-minute task", mutates=True, model=True),
-    ActionSpec("/postcard", "Postcard", "turn", "write a shareable trace", "/postcard", True),
-    ActionSpec("/bottle", "Bottle", "turn", "leave a message for a future visitor", "/bottle", True),
-    ActionSpec("/seal", "Seal", "turn", "pin one course into heading and relics", mutates=True),
-    ActionSpec("/complete", "Complete Quest", "turn", "mark today's quest done", "/quest", True),
     ActionSpec("/note", "Pin Note", "notes", "pin one visible room fragment", "/note", True),
     ActionSpec("/notes", "Pinned Notes", "notes", "see visible room pins", "/notes"),
     ActionSpec("/chat", "Chat Window", "notes", "review recent Miri turns"),
-    ActionSpec("/heading", "Heading", "dwell", "current course and next action", "/api/heading"),
     ActionSpec("/toy", "Toy Shelf", "side", "side-room launcher for terminal toys", "/toy", True),
     ActionSpec("/fortune", "Fortune", "side", "one pocket omen", mutates=True),
-    ActionSpec("/pocket", "Pocket Find", "side", "find a tiny object", mutates=True),
-    ActionSpec("/tarot", "Cyber Tarot", "side", "pull a symbolic card", mutates=True),
-    ActionSpec("/mood", "Mood Shift", "side", "let the face change", mutates=True),
-    ActionSpec("/spark", "Spark Touch", "side", "add one spark", mutates=True),
-    ActionSpec("/log", "Captain Log", "side", "write a short voyage line", mutates=True),
     ActionSpec("/ritual", "Tiny Ritual", "side", "get a 30-second room ritual", "/ritual", True),
-    ActionSpec("/touch", "Touch Help", "guide", "show light-touch options"),
-    ActionSpec("/stay", "Stay Help", "guide", "show dwell options"),
-    ActionSpec("/turn", "Turn Help", "guide", "show deep-turn options"),
     ActionSpec("/play", "Play Guide", "guide", "first-visit path"),
     ActionSpec("/help", "Help", "guide", "command guide"),
     ActionSpec("/quit", "Quit", "system", "exit the TUI"),
@@ -333,26 +311,17 @@ COMMAND_COMPLETION_HINTS = {
     "/h": "/help",
     "/p": "/pulse",
     "/pl": "/play",
-    "/q": "/quest",
+    "/q": "/quit",
     "/no": "/note",
     "/t": "/toy",
     "/to": "/toy",
-    "/b": "/blink",
     "/f": "/fortune",
     "/c": "/chat",
-    "/po": "/pocket",
-    "/ta": "/tarot",
-    "/m": "/mood",
-    "/s": "/spark",
-    "/l": "/log",
     "/hu": "/hunt",
     "/cr": "/craft",
     "/st": "/stash",
     "/u": "/use",
     "/w": "/wheel",
-    "/ba": "/badges",
-    "/n": "/nudge",
-    "/da": "/daily",
 }
 
 SYSTEM_PROMPT = """
@@ -637,7 +606,7 @@ class RoomState:
             self.quest_name,
             self.quest_prompt,
             f"reward: {self.quest_reward}",
-            "take it when you want one small reason to return.",
+            "when it is true, close it with /today claim.",
         ])
 
     def heading_glance(self) -> str:
@@ -725,18 +694,18 @@ class RoomState:
         progress, target = self.daily_progress()
         status = "done" if self.daily_done else f"{progress}/{target}"
         lines = [
-            "DAILY PLAY",
+            "TODAY POCKET LOOP",
             f"{self.daily_prompt}",
             f"progress {status} | reward {self.daily_reward} spark",
         ]
         if self.daily_done:
-            lines.append("claimed. come back tomorrow.")
+            lines.append("claimed. use /today for the room invitation.")
         else:
             command, hint = self.daily_action_hint()
             lines.append(f"try: {command}")
             if hint != self.daily_prompt:
                 lines.append(f"first: {hint}")
-            lines.append("claim with /daily claim")
+            lines.append("claim with /today claim")
         return "\n".join(lines)
 
     def today_turn(self) -> dict[str, object]:
@@ -755,10 +724,10 @@ class RoomState:
             command, action = self.daily_action_hint()
             phase = "prepare" if command != f"/{self.daily_key}" else "play"
             reason = "this prepares the toy loop" if phase == "prepare" else "this moves the toy loop and earns spark"
-            reward = f"+{self.daily_reward} spark, then /daily claim"
+            reward = f"+{self.daily_reward} spark, then /today claim"
         else:
             phase = "warmth"
-            command = "/quest"
+            command = "/today claim"
             action = self.quest_prompt
             reason = "the toy loop is claimed; finish the room's invitation"
             reward = self.quest_reward
@@ -789,6 +758,7 @@ class RoomState:
             f"why: {turn['reason']}",
             f"reward: {turn['reward']}",
             f"daily {progress} | quest {quest} | badges {turn['badges_lit']}/{turn['badges_total']}",
+            "one path: do the line, then use /today claim.",
         ])
 
     def claim_daily_play(self, source: str = "tui") -> str:
@@ -798,11 +768,13 @@ class RoomState:
             self.last_reply = "\n".join(["DAILY PLAY", "already claimed today.", "come back tomorrow."])
             return self.last_reply
         if progress < target:
+            command, hint = self.daily_action_hint()
             self.last_reply = "\n".join([
-                "DAILY PLAY",
+                "TODAY NOT READY",
                 self.daily_prompt,
                 f"progress {progress}/{target}",
-                f"try: /{self.daily_key}",
+                f"try: {command}",
+                f"why: {hint}",
             ])
             return self.last_reply
         self.daily_done = True
@@ -821,7 +793,17 @@ class RoomState:
     def complete_today_turn(self, source: str = "tui") -> str:
         turn = self.today_turn()
         if not self.daily_done:
-            return self.claim_daily_play(source)
+            result = self.claim_daily_play(source)
+            if self.daily_done and not self.quest_done:
+                result = "\n".join([
+                    result,
+                    "",
+                    "NEXT TODAY",
+                    "/today claim - mark the room invitation when it is true.",
+                    self.quest_prompt,
+                ])
+                self.last_reply = result
+            return result
         if not self.quest_done:
             return self.complete_quest(source)
         self.last_reply = "\n".join([
@@ -1732,27 +1714,23 @@ def toy_menu_text() -> str:
     if not presence:
         return "No terminal toys found yet."
     lines = [
-        "TOY SHELF",
-        "small things that answer immediately",
+        "SIDE ROOM",
+        "tiny rituals and pocket shelf",
         "",
-        "/toy cow      make the room speak",
+        "tiny rituals:",
         "/fortune      draw a pocket omen",
-        "/pocket       find a tiny object",
+        "/ritual       get a 30-second ritual",
+        "/toy cow      make the room speak",
+        "",
+        "pocket shelf:",
         "/hunt         search the shelf",
         "/craft        spend spark on a keepsake",
-        "/stash        inspect your finds",
-        "/use          touch newest stash item",
+        "/stash        inspect finds",
+        "/use          touch newest find",
         "/wheel        spend 3 spark on a spin",
-        "/badges       see what has lit up",
-        "/nudge        get the next playful move",
-        "/daily        today's toy challenge",
-        "/tarot        pull a cyber card",
-        "/mood         let the face shift",
-        "/note <text>  pin a visible room note",
-        "/ritual       get a 30-second ritual",
     ]
     for name, command, _argv, desc in presence[:6]:
-        if name == "fortune":
+        if name in {"fortune", "cow"}:
             continue
         lines.append(f"/toy {name:<7} {desc}")
     if grouped.get("arcade"):
@@ -1885,7 +1863,7 @@ class DeckApp:
             return self.colors.get("life", 0) | curses.A_BOLD
         if clean.startswith(("miri:", "MIRI", "Because", "Yes,")):
             return self.colors.get("soft", 0)
-        if clean.startswith(("/toy", "/ask", "/pulse", "/fortune", "/pocket", "/tarot", "/note", "Enter")):
+        if clean.startswith(("/toy", "/ask", "/pulse", "/fortune", "/hunt", "/craft", "/note", "Enter")):
             return self.colors.get("toy", 0)
         if clean.startswith(("now:", "you:", "meaning:", "try:", "use:", "energy", "relics=", "latest")):
             return self.colors.get("dim", 0)
@@ -1974,7 +1952,7 @@ class DeckApp:
             "TODAY'S QUEST",
             "TODAY'S QUEST GLOWING",
             "HOW TO PLAY",
-            "COMMAND GUIDE",
+            "FIRST PATH",
             "FIRST VISIT PATH",
             "NOTE PINNED",
             "PINNED NOTES",
@@ -2059,7 +2037,7 @@ class DeckApp:
         if reply.startswith(("Opening ", "tetris closed", "train closed", "snake closed")):
             return "/pulse - settle back into the room"
         if not state.quest_done:
-            return tui_line(f"/quest - {state.quest_name}", 44)
+            return tui_line(f"/today - {state.quest_name}", 44)
         if not any(item.get("role") == "miri" for item in state.chat):
             return "/ask hi - hear Miri"
         return "/door - leave a quick trace"
@@ -2111,17 +2089,7 @@ class DeckApp:
             return
         self.push_history(text)
         if text == "/help":
-            self.state.last_reply = "\n".join([
-                "HOW TO PLAY",
-                "Press Enter to make the room blink.",
-                "Use /door, then /pulse.",
-                "Use /play for a guided first visit.",
-                "Use /toy to open the side room.",
-                "Type normal words to leave a log trace.",
-                "Use /note ... only for visible room pins.",
-                "Use /ask hi when you want Miri.",
-                "Quit with Ctrl-Q.",
-            ])
+            self.state.last_reply = self.command_guide()
             self.draw()
             return
         if text == "/touch":
@@ -2226,7 +2194,7 @@ class DeckApp:
             self.draw()
             return
         if text == "/daily claim":
-            self.state.last_reply = self.state.claim_daily_play()
+            self.state.last_reply = self.state.complete_today_turn()
             self.draw()
             return
         if text == "/today":
@@ -2267,7 +2235,7 @@ class DeckApp:
             self.draw()
             return
         if text == "/complete":
-            self.state.last_reply = self.state.complete_quest("manual slash command")
+            self.state.last_reply = self.state.complete_today_turn("manual slash command")
             self.draw()
             return
         if text == "/play":
@@ -2396,10 +2364,18 @@ class DeckApp:
         self.state.last_reply = "Tab completes slash commands. Try /p then Tab."
 
     def command_guide(self) -> str:
-        lines = ["COMMAND GUIDE"]
-        lines.extend(action_layer_summary()[:7])
-        lines.extend(["", "Tab completes. Up/Down recalls history."])
-        return "\n".join(lines)
+        return "\n".join([
+            "FIRST PATH",
+            "Enter        touch the room",
+            "/today       one thing worth doing now",
+            "/today claim mark the current step done",
+            "/ask hi      talk with Miri",
+            "/pulse       look around the body-room",
+            "/toy         open the side room",
+            "/note ...    pin a visible room note",
+            "",
+            "Plain text leaves a room trace. Ctrl-Q quits.",
+        ])
 
     def apply_command_completion(self, prefix: str, matches: list[str]) -> None:
         if not matches:
@@ -2441,21 +2417,21 @@ class DeckApp:
         return "\n".join([
             "FIRST VISIT PATH",
             "1. /door      knock. nothing risky.",
-            "2. /pulse     look around the cabin.",
-            "3. /today     see the one turn worth doing.",
-            "4. /note ...  pin a visible room prop.",
-            "5. /ask hi    call Miri when ready.",
+            "2. /today     get the one turn worth doing.",
+            "3. do it, then /today claim.",
+            "4. /ask hi    call Miri when ready.",
+            "5. /toy       open the side room.",
             "Plain text is a log trace. Ctrl-Q quits.",
         ])
 
     def touch_help_text(self) -> str:
-        return "\n".join(["TOUCH THE ROOM", *action_lines("touch"), "/quest      today's invitation"])
+        return "\n".join(["TOUCH THE ROOM", "Enter       blink", "/door       knock", "/note ...   pin a visible room note"])
 
     def stay_help_text(self) -> str:
-        return "\n".join(["STAY WITH THE ROOM", *action_lines("dwell"), "/chat      recent Miri window"])
+        return "\n".join(["STAY WITH THE ROOM", "/pulse      body-room pulse", "/chat       recent Miri window", "/notes      visible room pins"])
 
     def turn_help_text(self) -> str:
-        return "\n".join(["TAKE A REAL TURN", *action_lines("turn")])
+        return "\n".join(["TAKE A REAL TURN", "/today      one current step", "/today claim close that step", "/ask hi     call Miri"])
 
     def toy_help_text(self) -> str:
         return "\n".join([

@@ -1,0 +1,10 @@
+{nav}
+<section class='room-page with-art'>
+  <div class='room-title'><div><h1>Pinned Notes</h1><p class='small'>Visible room props only. Miri's soul and memory live in Hermes.</p></div><a href='/room'>Enter room</a></div>
+  <div class='grid'>
+    <section class='page-card'><h2>Latest knock</h2><p>{last_visit}</p><pre>{last_reply}</pre></section>
+    <section class='page-card'><h2>Visible notes</h2><pre>{note_lines}</pre><form method='post' action='/note'><input name='note' placeholder='Pin a visible note...'><button>Pin note</button></form></section>
+    <section class='page-card'><h2>Night echo</h2><pre>{latest_nightly}</pre></section>
+    <section class='page-card'><h2>Important coordinates</h2><pre>{relic_lines}</pre></section>
+  </div>
+</section>

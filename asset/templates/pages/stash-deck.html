@@ -1,0 +1,16 @@
+    <section class='deck-card overview-panel notes-mini shelf-card'>
+      <div>
+        <div class='mini-header'><h2>Pocket Stash</h2><span class='mini-sub'>spark {spark} / streak {hunt_streak}</span></div>
+        <pre>{stash_text}</pre>
+        <div class='round-tools stash-tools'>
+          <form method='post' action='/hunt' data-action='async'><button class='icon-button' aria-label='Hunt' title='Hunt'>{icon_hunt}</button></form>
+          <form method='post' action='/wheel' data-action='async'><button class='icon-button' aria-label='Wheel' title='Wheel'>{icon_wheel}</button></form>
+          <form method='post' action='/craft' data-action='async'><button class='icon-button' aria-label='Craft' title='Craft'>{icon_craft}</button></form>
+        </div>
+        <pre data-live='result'></pre>
+      </div>
+      <div>
+        {shelf_objects}
+        {stash_grid}
+      </div>
+    </section>

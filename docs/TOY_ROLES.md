@@ -103,6 +103,13 @@ Recommended grouping:
 - `clock`
 - `garden`
 
+### Pocket shelf
+- `hunt`
+- `craft`
+- `stash`
+- `use`
+- `wheel`
+
 ### Arcade side room
 - `train`
 - `moon`
@@ -126,6 +133,7 @@ Toys can support that, but should not replace it.
 
 In practice:
 - one room-presence toy may appear as a nearby suggestion
+- `/today` may point at pocket-shelf actions, but the closure remains `/today claim`
 - arcade toys should stay one move away
 - utility toys should stay in a secondary surface
 

@@ -1,0 +1,31 @@
+    <section class='deck-card screen home-screen'>
+      <div class='asset-bg home-bg'></div>
+      <div class='room-glow' aria-hidden='true'></div>
+      <div class='screen-content home-copy'>
+        <h1>Miri<br>is awake.</h1>
+        <div class='speech' data-live='latest'>{whisper}<br><span class='heart'>*</span></div>
+        <div class='presence-line' data-live='vitals'>{presence}</div>
+        {today_turn}
+        <div class='home-dock'>
+          <form class='quick-input' method='post' action='/ask' data-action='async'>
+            <input name='prompt' placeholder='Say one real sentence to Miri...'>
+            <button title='Talk with Miri'>Talk</button>
+          </form>
+          <div class='touch-row'>
+            <form method='post' action='/bridge-flash' data-action='flash'>
+              <input name='wish' placeholder='Leave a small touch...'>
+              <button>Touch</button>
+            </form>
+            <span class='conversation-note' data-live='phase'>listening</span>
+          </div>
+        </div>
+      </div>
+      <form class='door-action screen-content' method='post' action='/doorbell'>
+        <button>Knock Softly<br><span class='eyebrow'>Let it know you are here</span></button>
+      </form>
+      <div class='screen-content dock-stamp'>
+        <span>room online</span> / <span data-live='stamp'>{stamp}</span>
+      </div>
+      {recent_relics}
+      {result_html}
+    </section>

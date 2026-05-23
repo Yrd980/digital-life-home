@@ -1,0 +1,12 @@
+    <section class='deck-card overview-panel ritual-mini'>
+      <div class='mini-header'><h2>Rituals</h2><span class='mini-sub'>{quest_name}</span></div>
+      <p>{quest_prompt}</p>
+      <div class='ritual-row'>
+        <form class='ritual-card' method='post' action='/ritual' data-action='async'><div class='big'><span class='ritual-icon wake'></span></div><h2>Wake</h2><button name='kind' value='wake'>Run</button></form>
+        <form class='ritual-card' method='post' action='/bridge-flash' data-action='flash'><div class='big'><span class='ritual-icon flash'></span></div><h2>Flash</h2><input name='wish' placeholder='A small touch'><button>Run</button></form>
+        <form class='ritual-card' method='post' action='/quest' data-action='async'><div class='big'><span class='ritual-icon quest'></span></div><h2>Quest</h2><button name='action' value='complete'>Complete</button></form>
+        <form class='ritual-card' method='post' action='/postcard' data-action='async'><div class='big'><span class='ritual-icon postcard'></span></div><h2>Postcard</h2><input name='title' placeholder='Title'><button>Write</button></form>
+        <form class='ritual-card' method='post' action='/bottle' data-action='async'><div class='big'><span class='ritual-icon bottle'></span></div><h2>Bottle</h2><input name='wish' placeholder='Future visitor'><button>Place</button></form>
+      </div>
+      <pre data-live='result'>{result}</pre>
+    </section>

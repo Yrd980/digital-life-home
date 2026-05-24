@@ -55,6 +55,10 @@ Runtime state is local and ignored by git:
 
 `pocket_web.py` is the web room. It calls the same body core and the same Miri mind daemon; HTML shells/pages, CSS, and browser JS live under `asset/templates/` and `asset/surfaces/`.
 
+The web room is currently a single spatial surface at `/`: room image, ambient runtime layers, Miri bubble, hidden air input, hotspots, and local object lenses. Keep new browser abilities inside that room unless they truly need a deeper inspection page; keep machine-readable integrations under `/api/*`.
+
+The room runtime is layered as background, ambient FX, persistent items, Miri, hotspots, foreground, and floating UI. `pocket_web.py` supplies device state such as time phase, Miri state, bubble tone, and room flags; `pocket-room.js` turns those into hover glow, idle behavior, live refresh, and the air prompt.
+
 `scripts/*.sh` are reusable body organs. Add new abilities as scripts first, then expose them through the TUI/web/action catalog.
 
 ## Rules
@@ -63,5 +67,5 @@ Runtime state is local and ignored by git:
 - Do not add compatibility paths for old identities.
 - WalnutPi screen output must be English.
 - Local state belongs to the device and should survive restarts.
-- Keep the first screen alive and useful: status, mood, next action, one input path.
+- Keep the first screen alive and useful: status, mood, next action, one spatial input path.
 - Keep code small, dependency-light, and easy to extend.

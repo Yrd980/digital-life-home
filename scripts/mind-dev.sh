@@ -26,15 +26,14 @@ find_hermes_root() {
 
 cd "$ROOT"
 mkdir -p "$ROOT/state"
-HERMES_ROOT="$(find_hermes_root || true)"
-
-if [[ -z "$HERMES_ROOT" ]]; then
-  echo "Set MIRI_RUNTIME_ROOT to a Hermes agent checkout or install Hermes at /usr/local/lib/hermes-agent." >&2
-  exit 1
-fi
 
 case "${1:-start}" in
   start)
+    HERMES_ROOT="$(find_hermes_root || true)"
+    if [[ -z "$HERMES_ROOT" ]]; then
+      echo "Set MIRI_RUNTIME_ROOT to a Hermes agent checkout or install Hermes at /usr/local/lib/hermes-agent." >&2
+      exit 1
+    fi
     if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
       echo "Miri mind already running: pid $(cat "$PIDFILE")"
       exit 0
@@ -60,12 +59,18 @@ case "${1:-start}" in
   status)
     if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
       echo "running pid $(cat "$PIDFILE")"
+    elif command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 http://127.0.0.1:8791/health >/dev/null 2>&1; then
+      echo "running on http://127.0.0.1:8791"
     else
       echo "not running"
     fi
     ;;
   log)
-    tail -n "${2:-80}" "$LOGFILE"
+    if [[ -f "$LOGFILE" ]]; then
+      tail -n "${2:-80}" "$LOGFILE"
+    else
+      echo "no mind dev log yet"
+    fi
     ;;
   *)
     echo "usage: $0 {start|stop|restart|status|log [lines]}" >&2

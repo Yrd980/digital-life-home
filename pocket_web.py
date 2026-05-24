@@ -7,7 +7,7 @@ import json
 import mimetypes
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -20,16 +20,12 @@ ACTION_LOCK = threading.Lock()
 ASSET_DIR = Path(__file__).resolve().parent / "asset"
 TEMPLATE_DIR = ASSET_DIR / "templates"
 PAGE_TEMPLATE_DIR = TEMPLATE_DIR / "pages"
-SURFACE_DIR = ASSET_DIR / "surfaces"
 
 
 @dataclass(frozen=True)
 class DeckPage:
     path: str
-    icon: str
-    label: str
     page_class: str
-    nav: bool = True
 
 
 @dataclass(frozen=True)
@@ -51,24 +47,16 @@ class RequestContext:
 
 
 PAGES = [
-    DeckPage("/", "home", "Home", "deck-home"),
-    DeckPage("/room", "room", "Room", "deck-room"),
-    DeckPage("/body", "body", "Body", "deck-body"),
-    DeckPage("/notes", "notes", "Notes", "deck-notes"),
-    DeckPage("/stash", "grid", "Stash", "deck-stash"),
-    DeckPage("/badges", "badge", "Badges", "deck-badges", nav=False),
-    DeckPage("/ritual", "ritual", "Ritual", "deck-ritual"),
-    DeckPage("/settings", "settings", "Settings", "deck-settings"),
+    DeckPage("/", "deck-room"),
 ]
 PAGE_BY_PATH = {page.path: page for page in PAGES}
 SHELL_PATHS = tuple(PAGE_BY_PATH)
-SURFACES = {"web", "board"}
 ASSETS = {
-    "robot_neutral": "/asset/opt/robot-neutral.webp",
-    "robot_blush": "/asset/opt/robot-blush.webp",
-    "robot_curious": "/asset/opt/robot-curious.webp",
-    "robot_happy": "/asset/opt/robot-happy.webp",
-    "robot_sad": "/asset/opt/robot-sad.webp",
+    "robot_neutral": "/asset/calm.png",
+    "robot_blush": "/asset/happy.png",
+    "robot_curious": "/asset/think.png",
+    "robot_happy": "/asset/happy.png",
+    "robot_sad": "/asset/sleep.png",
 }
 
 
@@ -87,22 +75,18 @@ def render_page_template(name: str, values: dict[str, object]) -> str:
 
 
 def surface_stylesheet(surface: str) -> str:
-    if surface not in SURFACES:
-        surface = "web"
-    return f"/asset/surfaces/{surface}.css"
+    return "/asset/surfaces/web.css"
 
 
 def surface_path(path: str, surface: str = "web") -> str:
-    if surface == "web":
-        return path
-    return f"/{surface}" if path == "/" else f"/{surface}{path}"
+    return path
 
 
 def normalize_surface_path(raw_path: str) -> tuple[str, str]:
     parts = raw_path.split("/", 2)
-    if len(parts) >= 2 and parts[1] in SURFACES:
+    if len(parts) >= 2 and parts[1] == "web":
         inner = "/" + parts[2] if len(parts) == 3 and parts[2] else "/"
-        return parts[1], inner
+        return "web", inner
     return "web", raw_path
 
 
@@ -121,6 +105,60 @@ def is_provider_error(text: str) -> bool:
         "timeout",
     ]
     return any(needle in raw for needle in needles)
+
+
+WEB_COMMAND_LABELS = (
+    ("/today claim", "Mark done"),
+    ("/bridge-flash", "Leave trace"),
+    ("/bridge", "Bridge"),
+    ("/postcard", "Postcard"),
+    ("/bottle", "Bottle"),
+    ("/ritual", "Daily"),
+    ("/craft", "Craft charm"),
+    ("/wheel", "Spin spark"),
+    ("/hunt", "Find object"),
+    ("/ask", "Talk"),
+    ("/use", "Use"),
+)
+
+
+def web_copy(text: object) -> str:
+    clean = str(text or "")
+    upper = clean.strip().upper()
+    if upper.startswith("CRAFT BENCH"):
+        return "Not enough glow to craft yet. Try Find."
+    if upper.startswith("PLAY NUDGE"):
+        return "Try a room action."
+    clean = clean.replace("CRAFT BENCH", "Craft bench")
+    clean = clean.replace("PLAY NUDGE", "Room nudge")
+    clean = clean.replace("try:", "next:")
+    clean = clean.replace(" hunt ", " find ")
+    clean = clean.replace("spark", "glow")
+    clean = clean.replace("this moves the toy loop and earns glow", "look around and leave a trace")
+    clean = clean.replace("this moves the toy loop and earns spark", "A shelf action that leaves a trace.")
+    for command, label in WEB_COMMAND_LABELS:
+        clean = clean.replace(command, label)
+    return clean
+
+
+def web_room_voice(text: str) -> str:
+    return web_copy(room_voice(text))
+
+
+def web_kind_label(kind: object) -> str:
+    labels = {
+        "hunt": "object",
+        "craft": "charm",
+        "wheel": "spark",
+        "visit": "visit",
+        "flash": "trace",
+        "postcard": "postcard",
+        "bottle": "bottle",
+        "quest": "daily",
+        "wake": "wake",
+        "log": "log",
+    }
+    return labels.get(str(kind or "").lower(), str(kind or "trace"))
 
 
 def charm_kind(kind: str) -> str:
@@ -161,6 +199,83 @@ def recent_relics_html(state: pocket_soul.RoomState, limit: int = 4) -> str:
     return "<div class='relic-dock' aria-hidden='true'>" + "".join(charms) + "</div>"
 
 
+def web_room_phase(now: datetime | None = None) -> str:
+    now = now or datetime.now()
+    hour = now.hour
+    if hour < 6 or hour >= 21:
+        return "night"
+    if hour < 9:
+        return "dawn"
+    if hour >= 18:
+        return "evening"
+    return "day"
+
+
+def web_room_scene(now: datetime | None = None) -> tuple[str, str]:
+    phase = web_room_phase(now)
+    image_phase = "night" if phase == "night" else "light"
+    filename = f"room-{image_phase}.jpg"
+    if not (ASSET_DIR / filename).is_file():
+        filename = "room.jpg"
+        phase = "day"
+    return f"/asset/{filename}", phase
+
+
+def web_miri_state(state: pocket_soul.RoomState) -> str:
+    text = f"{state.mood} {state.last_reply}".lower()
+    if is_provider_error(state.last_reply):
+        return "resting"
+    if state.energy < 35 or "sleep" in text or "tired" in text:
+        return "sleepy"
+    if "think" in text or "?" in text or "bridge" in text:
+        return "thinking"
+    if "happy" in text or "love" in text or state.bond >= 25:
+        return "bright"
+    return "idle"
+
+
+def web_bubble_tone(state: pocket_soul.RoomState) -> str:
+    miri_state = web_miri_state(state)
+    if miri_state == "resting":
+        return "system"
+    if miri_state in {"thinking", "sleepy"}:
+        return "think"
+    return "neutral"
+
+
+def web_room_flags(state: pocket_soul.RoomState) -> str:
+    flags = []
+    if state.relics:
+        flags.append("has-relics")
+    if state.stash_items(1):
+        flags.append("has-stash")
+    if state.notes:
+        flags.append("has-notes")
+    if state.daily_done:
+        flags.append("is-daily-done")
+    return " ".join(flags)
+
+
+def web_room_values(state: pocket_soul.RoomState, result: str = "") -> dict[str, object]:
+    reply = web_room_voice(state.last_reply)
+    room_image, room_phase = web_room_scene()
+    return {
+        "reply": esc(reply),
+        "room_image": room_image,
+        "room_phase": room_phase,
+        "room_flags": web_room_flags(state),
+        "miri_state": web_miri_state(state),
+        "bubble_tone": web_bubble_tone(state),
+        "miri_image": robot_image(state),
+        "pinboard_panel": web_pinboard_panel_html(state),
+        "shelf_panel": web_shelf_panel_html(state),
+        "daily_panel": web_daily_panel_html(state),
+        "body_panel": web_body_panel_html(state),
+        "result": esc(web_copy(result)),
+        "stamp": esc(datetime.now().strftime("%H:%M")),
+    }
+
+
 def shelf_objects_html(state: pocket_soul.RoomState, limit: int = 8) -> str:
     items = state.stash_items(limit)
     if items:
@@ -176,27 +291,62 @@ def shelf_objects_html(state: pocket_soul.RoomState, limit: int = 8) -> str:
     )
 
 
-ICONS = {
-    "home": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M4 11.5 12 5l8 6.5'/><path d='M6.5 10.8V20h11v-9.2'/><path d='M9.5 20v-5.5h5V20'/></svg>",
-    "room": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M7 20V9l5-4 5 4v11'/><path d='M10 20v-6h4v6'/><path d='M4 20h16'/></svg>",
-    "body": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3.1A4.2 4.2 0 0 1 19 11c0 5.6-7 10-7 10Z'/></svg>",
-    "notes": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 6h14'/><path d='M5 11h14'/><path d='M5 16h14'/><path d='M5 21h14'/></svg>",
-    "ritual": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3v5'/><path d='M8.5 8h7'/><path d='m9.5 11-2 9h9l-2-9'/><path d='M9 16h6'/></svg>",
-    "grid": "<svg viewBox='0 0 24 24' aria-hidden='true'><rect x='4' y='4' width='6' height='6' rx='1'/><rect x='14' y='4' width='6' height='6' rx='1'/><rect x='4' y='14' width='6' height='6' rx='1'/><rect x='14' y='14' width='6' height='6' rx='1'/></svg>",
-    "knock": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 21s-7-4.4-7-10a4.2 4.2 0 0 1 7-3.1A4.2 4.2 0 0 1 19 11c0 5.6-7 10-7 10Z'/></svg>",
-    "hunt": "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='11' cy='11' r='6'/><path d='m16 16 4 4'/><path d='M11 8v6M8 11h6'/></svg>",
-    "wheel": "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='2'/><path d='M12 4v6M12 14v6M4 12h6M14 12h6M6.3 6.3l4.2 4.2M13.5 13.5l4.2 4.2M17.7 6.3l-4.2 4.2M10.5 13.5l-4.2 4.2'/></svg>",
-    "nudge": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 12h12'/><path d='m13 8 4 4-4 4'/><path d='M5 6h5M5 18h5'/></svg>",
-    "craft": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M14.7 6.3 17.7 3.3a2.1 2.1 0 0 1 3 3l-3 3'/><path d='M4 20l6.6-6.6'/><path d='m7 17 10-10'/><path d='M3 21l5-1 11-11-4-4L4 16z'/></svg>",
-    "quest": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 12.5 10 17 19 7'/><path d='M4 5h16v16H4z'/></svg>",
-    "postcard": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M4 6h16v12H4z'/><path d='m4 7 8 6 8-6'/></svg>",
-    "badge": "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3 15 8l5 1-3.5 4 1 6-5.5-2.8L6.5 19l1-6L4 9l5-1z'/></svg>",
-    "settings": "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='3'/><path d='M12 2.8v3M12 18.2v3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M2.8 12h3M18.2 12h3M4.5 19.5l2.1-2.1M17.4 6.6l2.1-2.1'/></svg>",
-}
+def web_pinboard_panel_html(state: pocket_soul.RoomState) -> str:
+    if state.notes:
+        notes = "".join(f"<li>{esc(note)}</li>" for note in state.notes[-8:][::-1])
+    else:
+        notes = "<li>The pinboard is empty.</li>"
+    return f"""
+<form class='note-form' method='post' action='/note' data-action='async'>
+  <input name='note' placeholder='Pin a visible note'>
+  <button>Pin</button>
+</form>
+<p class='pin-hint'>Visible props only. Quote one in Talk or Bridge when Miri should see it.</p>
+<ul class='pin-list'>{notes}</ul>
+"""
 
 
-def icon(name: str) -> str:
-    return ICONS.get(name, "")
+def web_shelf_panel_html(state: pocket_soul.RoomState) -> str:
+    return f"""
+{shelf_objects_html(state, 12)}
+{stash_html(state, 10, True)}
+"""
+
+
+def web_daily_panel_html(state: pocket_soul.RoomState) -> str:
+    turn = state.today_turn()
+    action = esc(web_copy(turn["action"]))
+    reason = esc(web_copy(turn["reason"]))
+    reward = esc(web_copy(turn["reward"]))
+    progress = "done" if turn["daily_done"] else f"{turn['progress']}/{turn['target']}"
+    quest = "done" if turn["quest_done"] else "open"
+    light = max(0, min(100, int(turn["light"])))
+    return f"""
+<section class='daily-card' style='--turn-light:{light}%'>
+  <h2>{action}</h2>
+  <p>{reason}</p>
+  <div class='turn-meter' aria-hidden='true'><span></span></div>
+  <small>daily {esc(progress)} / invitation {esc(quest)} / reward {reward}</small>
+  <form method='post' action='/today' data-action='async'><button name='action' value='claim'>Mark done</button></form>
+</section>
+"""
+
+
+def web_body_panel_html(state: pocket_soul.RoomState) -> str:
+    words = body_words()
+    rows = [
+        ("temperature", words["temperature"], words["raw_temp"]),
+        ("heartbeat", "steady", f"load {words['load']}"),
+        ("window", words["window"], words["net"]),
+        ("presence", words["presence"], "local room"),
+        ("uptime", words["spirit"], words["uptime"]),
+        ("disk", words["disk"], "storage body"),
+    ]
+    cards = "".join(
+        f"<article><span>{esc(label)}</span><b>{esc(value)}</b><small>{esc(detail)}</small></article>"
+        for label, value, detail in rows
+    )
+    return f"<div class='body-grid room-body-grid'>{cards}</div>"
 
 
 def stash_html(state: pocket_soul.RoomState, limit: int = 8, interactive: bool = False) -> str:
@@ -216,78 +366,11 @@ def stash_html(state: pocket_soul.RoomState, limit: int = 8, interactive: bool =
     return "<div class='stash-grid'>" + "".join(cards) + "</div>"
 
 
-def badges_html(state: pocket_soul.RoomState) -> str:
-    cards = []
-    for name, note, unlocked in state.badge_rows():
-        klass = "badge-tile is-lit" if unlocked else "badge-tile"
-        mark = "lit" if unlocked else "locked"
-        cards.append(f"<article class='{klass}'><span>{mark}</span><b>{esc(name)}</b><p>{esc(note)}</p></article>")
-    return "<div class='badge-wall'>" + "".join(cards) + "</div>"
-
-
-def nudge_preview(state: pocket_soul.RoomState) -> str:
-    old_reply = state.last_reply
-    try:
-        return state.next_play_nudge()
-    finally:
-        state.last_reply = old_reply
-
-
-def today_turn_html(state: pocket_soul.RoomState, compact: bool = False) -> str:
-    turn = state.today_turn()
-    progress = "done" if turn["daily_done"] else f"{turn['progress']}/{turn['target']}"
-    quest = "done" if turn["quest_done"] else "open"
-    command = str(turn["command"])
-    action = esc(str(turn["action"]))
-    reward = esc(str(turn["reward"]))
-    reason = esc(str(turn["reason"]))
-    light = max(0, min(100, int(turn["light"])))
-    target_href = "/ritual" if command in {"/postcard", "/bottle"} else "/room"
-    detail = reward if compact else f"{reason} / {reward}"
-    return f"""
-<section class='today-turn' style='--turn-light:{light}%'>
-  <header><h2>Today's Turn</h2><span class='phase'>{esc(str(turn['phase']))} / {light}%</span></header>
-  <p><b>{esc(command)}</b> {action}</p>
-  <div class='turn-meter' aria-hidden='true'><span></span></div>
-  <small>daily {esc(progress)} | quest {esc(quest)} | badges {esc(str(turn['badges_lit']))}/{esc(str(turn['badges_total']))}</small>
-  <small>{detail}</small>
-  <div class='today-actions'>
-    <a class='ghost-button' href='{target_href}'>{esc(command)}</a>
-    <form method='post' action='/today' data-action='async'><button name='action' value='claim'>Claim</button></form>
-  </div>
-</section>
-"""
-
-
-def latest_log() -> str:
-    files = sorted(pocket_soul.LOG_DIR.glob("*.md"))
-    if not files:
-        return "No logs yet."
-    text = files[-1].read_text(encoding="utf-8")
-    return text[-5000:]
-
-
-def latest_nightly() -> str:
-    night_dir = pocket_soul.STATE_DIR / "nightly"
-    files = sorted(night_dir.glob("*.md")) if night_dir.exists() else []
-    if not files:
-        return "No nightly log yet."
-    return files[-1].read_text(encoding="utf-8")[-5000:]
-
-
 def latest_postcard() -> str:
     post_dir = pocket_soul.STATE_DIR / "postcards"
     files = sorted(post_dir.glob("*.txt")) if post_dir.exists() else []
     if not files:
         return "No postcard yet."
-    return files[-1].read_text(encoding="utf-8")[-3000:]
-
-
-def latest_bottle() -> str:
-    bottle_dir = pocket_soul.STATE_DIR / "bottles"
-    files = sorted(bottle_dir.glob("*.txt")) if bottle_dir.exists() else []
-    if not files:
-        return "No bottles yet."
     return files[-1].read_text(encoding="utf-8")[-3000:]
 
 
@@ -331,29 +414,6 @@ def body_words() -> dict[str, str]:
     }
 
 
-def nav(current: str = "") -> str:
-    links = [("/", "Door"), ("/room", "Room"), ("/body", "Body"), ("/notes", "Notes"), ("/ritual", "Rituals")]
-    items = []
-    for href, label in links:
-        class_attr = " class='brandlink'" if href == current else ""
-        items.append(f"<a href='{href}'{class_attr}>{label}</a>")
-    items_html = " ".join(items)
-    return f"<div class='topnav'><a class='brandlink' href='/'>Miri Deck</a><nav>{items_html}</nav></div>"
-
-
-def status_word(state: pocket_soul.RoomState) -> str:
-    text = f"{state.mood} {state.last_reply}".lower()
-    if "sleep" in text:
-        return "asleep"
-    if "dream" in text:
-        return "dreaming"
-    if "maintenance" in text:
-        return "in maintenance"
-    if state.energy < 30:
-        return "quiet"
-    return "awake"
-
-
 def robot_image(state: pocket_soul.RoomState) -> str:
     text = f"{state.mood} {state.last_reply}".lower()
     if "sad" in text or "quiet" in text or state.energy < 35:
@@ -395,34 +455,7 @@ def room_voice(text: str) -> str:
 def doorstep(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
     state = pocket_soul.RoomState.load()
     state.ensure_daily_quest()
-    words = body_words()
-    whisper = room_voice(state.last_reply)
-    presence = f"Feeling {state.mood}. Body {words['temperature']}. The window is open. Today's thread: {state.quest_name}."
-    result_html = f"<pre class='screen-content home-result' data-live='result'>{esc(result)}</pre>" if result else ""
-    deck = deck_page("/", render_page_template("home-deck.html", {
-        "whisper": esc(whisper),
-        "presence": esc(presence),
-        "today_turn": today_turn_html(state, True),
-        "stamp": esc(datetime.now().strftime("%H:%M:%S")),
-        "recent_relics": recent_relics_html(state),
-        "result_html": result_html,
-    }), partial, surface)
-    if deck:
-        return deck
-    content = render_page_template("home-plain.html", {
-        "mood_face": esc(pocket_soul.mood_face(state.mood)),
-        "status": esc(status_word(state)),
-        "whisper": esc(whisper),
-        "temperature": esc(words["temperature"]),
-        "spirit": esc(words["spirit"]),
-        "window": esc(words["window"]),
-        "body_presence": esc(words["presence"]),
-        "heading": esc(state.heading),
-        "quest_name": esc(state.quest_name),
-        "quest_prompt": esc(state.quest_prompt),
-        "result_html": f"<div class='course-line result'><pre>{esc(result)}</pre></div>" if result else "",
-    })
-    return page(content, surface)
+    return deck_page("/", render_page_template("room-web.html", web_room_values(state, result)), partial)
 
 
 def live_payload(state: pocket_soul.RoomState | None = None) -> dict[str, object]:
@@ -437,17 +470,27 @@ def live_payload(state: pocket_soul.RoomState | None = None) -> dict[str, object
             f"<div class='mini-tile'><span>window</span><b>{esc(words['window'])}</b></div>",
         ]
     )
-    presence = f"Feeling {state.mood}. Body {words['temperature']}. The window is open. Today's thread: {state.quest_name}."
+    presence = f"Feeling {state.mood}. Body {words['temperature']}. The window is open. Today's invitation: {state.quest_name}."
+    web_presence = "Room is open."
     return {
         "vitals": f"{words['temperature']} / {words['window']} / {state.latest_relic_text()}",
         "presence": presence,
+        "web_presence": web_presence,
         "vitals_html": vitals_html,
         "latest": room_voice(state.last_reply) if is_provider_error(state.last_reply) else state.latest_relic_text(),
         "reply": room_voice(state.last_reply),
+        "web_latest": web_copy(room_voice(state.last_reply) if is_provider_error(state.last_reply) else state.latest_relic_text()),
+        "web_reply": web_room_voice(state.last_reply),
         "mood": state.mood,
+        "room_phase": web_room_phase(),
+        "miri_state": web_miri_state(state),
+        "bubble_tone": web_bubble_tone(state),
         "today": turn,
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "relic_count": len(state.relics),
+        "stash_count": len(state.stash_items(24)),
+        "note_count": len(state.notes),
+        "room_flags": web_room_flags(state),
     }
 
 
@@ -457,7 +500,9 @@ def flash_payload(wish: str = "") -> dict[str, object]:
     state.save()
     return {
         "result": result,
+        "web_result": web_copy(result),
         "flash": result,
+        "web_flash": web_copy(result),
         "live": live_payload(state),
     }
 
@@ -468,6 +513,7 @@ def action_payload(path: str, data: dict[str, list[str]]) -> dict[str, object]:
         live = live_payload()
     return {
         "result": result,
+        "web_result": web_copy(result),
         "live": live,
     }
 
@@ -486,28 +532,18 @@ def parse_relic_id(values: list[str] | None) -> int:
         return -1
 
 
-def relic_page(index: int) -> bytes:
+def relic_text(index: int) -> bytes:
     relic, total = relic_detail(index)
     if relic is None:
-        return page(render_page_template("relic-missing.html", {"total": esc(total)}))
-    sigil = pocket_soul.RELIC_SIGILS.get(relic.get("kind", ""), "*")
-    prev_link = f"<a href='/relic?id={index - 1}'>Previous</a>" if index > 0 else ""
-    next_link = f"<a href='/relic?id={index + 1}'>Next</a>" if index + 1 < total else ""
-    action_label = f"{relic.get('kind', '?')} / {relic.get('title', 'Relic')}"
-    content = render_page_template("relic-detail.html", {
-        "sigil": esc(sigil),
-        "title": esc(relic.get("title", "Relic")),
-        "kind": esc(relic.get("kind", "?")),
-        "time": esc(relic.get("time", "")),
-        "note": esc(relic.get("note", "")),
-        "index": esc(index),
-        "action_label": esc(action_label),
-        "prev_link": prev_link,
-        "next_link": next_link,
-        "display_index": esc(index + 1),
-        "total": esc(total),
-    })
-    return page(content)
+        return f"Relic not found. total={total}\n".encode()
+    text = "\n".join([
+        relic.get("title", "Relic"),
+        f"kind: {relic.get('kind', '?')}",
+        f"time: {relic.get('time', '')}",
+        relic.get("note", ""),
+        f"index: {index + 1}/{total}",
+    ])
+    return (text + "\n").encode()
 
 
 def relic_action(index: int, action: str) -> str:
@@ -536,37 +572,17 @@ SCRIPT_SRC = "/asset/surfaces/pocket-room.js"
 
 
 
-def page(content: str, surface: str = "web") -> bytes:
-    shell_paths = esc(json.dumps([surface_path(item, surface) for item in SHELL_PATHS]))
-    template = (TEMPLATE_DIR / "plain-shell.html").read_text(encoding="utf-8")
-    html_doc = template.format(
-        stylesheet=surface_stylesheet(surface),
-        content=content,
-        shell_paths=shell_paths,
-        script_src=SCRIPT_SRC,
-    )
-    return html_doc.encode()
-
-
 def deck_page(path: str, inner: str, partial: bool = False, surface: str = "web") -> bytes | None:
-    if partial:
-        return inner.encode()
     page_meta = PAGE_BY_PATH.get(path, PAGE_BY_PATH["/"])
-    nav_html = "".join(
-        f"<a class='nav-item{' is-active' if page.path == path else ''}' href='{surface_path(page.path, surface)}'>"
-        f"<span class='nav-icon'>{icon(page.icon)}</span>"
-        f"<span class='nav-label'><strong>{page.label}</strong></span></a>"
-        for page in PAGES
-        if page.nav
-    )
-    shell = TEMPLATE_DIR / ("board-shell.html" if surface == "board" else "web-shell.html")
+    if partial:
+        marker = f"<span hidden data-page-class='{esc(page_meta.page_class)}'></span>"
+        return (marker + inner).encode()
+    shell = TEMPLATE_DIR / "web-shell.html"
     template = shell.read_text(encoding="utf-8")
     shell_paths = [surface_path(item, surface) for item in SHELL_PATHS]
     html_doc = template.format(
         stylesheet=surface_stylesheet(surface),
         page_class=page_meta.page_class,
-        home_href=surface_path("/", surface),
-        nav=nav_html,
         content=inner,
         shell_paths=esc(json.dumps(shell_paths)),
         script_src=SCRIPT_SRC,
@@ -587,183 +603,6 @@ def asset_response(path: str) -> tuple[bytes, str, int]:
         return b"Not found", "text/plain; charset=utf-8", 404
     content_type = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
     return target.read_bytes(), content_type, 200
-
-
-def room_page(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    state.ensure_daily_quest()
-    latest_relic = state.latest_relic_text()
-    nudge = nudge_preview(state)
-    relics = state.relic_shelf(5)
-    note_lines = "\n".join(f"- {item}" for item in state.notes[-6:]) or "No pinned notes."
-    reply = room_voice(state.last_reply)
-    deck = deck_page("/room", render_page_template("room-deck.html", {
-        "reply": esc(reply),
-        "recent_relic_charms": recent_relic_charms(state),
-        "robot_image": robot_image(state),
-        "today_turn": today_turn_html(state),
-        "icon_knock": icon("knock"),
-        "icon_nudge": icon("nudge"),
-        "icon_hunt": icon("hunt"),
-        "icon_wheel": icon("wheel"),
-        "icon_craft": icon("craft"),
-        "result": esc(result or latest_relic),
-        "nudge": esc(nudge),
-    }), partial, surface)
-    if deck:
-        return deck
-    content = render_page_template("room-plain.html", {
-        "nav": nav("/room"),
-        "latest_postcard": esc(latest_postcard()),
-        "quest_name": esc(state.quest_name),
-        "quest_prompt": esc(state.quest_prompt),
-        "mood_face": esc(pocket_soul.mood_face(state.mood)),
-        "mood": esc(state.mood),
-        "last_reply": esc(state.last_reply),
-        "relics": esc(relics),
-        "note_lines": esc(note_lines),
-        "latest_relic": esc(latest_relic),
-        "latest_bottle": esc(latest_bottle()),
-        "result": esc(result or "The room is quietly lit."),
-    })
-    return page(content, surface)
-
-
-def route_page(path: str, partial: bool = False, surface: str = "web") -> bytes:
-    renderer = PAGE_RENDERERS.get(path, doorstep)
-    return renderer(partial=partial, surface=surface)
-
-
-def body_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    words = body_words()
-    values = {
-        "temperature": esc(words["temperature"]),
-        "raw_temp": esc(words["raw_temp"]),
-        "load": esc(words["load"]),
-        "window": esc(words["window"]),
-        "net": esc(words["net"]),
-        "presence": esc(words["presence"]),
-        "spirit": esc(words["spirit"]),
-        "uptime": esc(words["uptime"]),
-        "disk": esc(words["disk"]),
-        "robot_image": robot_image(state),
-        "notes_count": esc(len(state.notes)),
-        "relic_count": esc(len(state.relics)),
-    }
-    deck = deck_page("/body", render_page_template("body-deck.html", values), partial, surface)
-    if deck:
-        return deck
-    values = values | {"nav": nav("/body"), "body_text": esc(pocket_soul.body_text())}
-    content = render_page_template("body-plain.html", values)
-    return page(content, surface)
-
-
-def notes_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    pinned_notes = state.notes[-12:]
-    note_lines = "\n".join(f"- {item}" for item in pinned_notes) or "No pinned notes in the room yet."
-    relic_lines = "\n".join(
-        f"{item.get('time', '')} / {item.get('kind', '')} / {item.get('title', '')}"
-        for item in state.relics[-10:][::-1]
-    ) or "No relics yet."
-    values = {
-        "last_visit": esc(state.last_visit or "No one has visited yet."),
-        "room_voice": esc(room_voice(state.last_reply)),
-        "recent_relic_charms": recent_relic_charms(state, 6),
-        "note_lines": esc(note_lines),
-        "relic_lines": esc(relic_lines),
-        "last_reply": esc(state.last_reply),
-    }
-    deck = deck_page("/notes", render_page_template("notes-deck.html", values), partial, surface)
-    if deck:
-        return deck
-    content = render_page_template("notes-plain.html", values | {
-        "nav": nav("/notes"),
-        "latest_nightly": esc(latest_nightly()),
-    })
-    return page(content, surface)
-
-
-def stash_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    stash_text = state.stash_view(12)
-    values = {
-        "spark": esc(state.spark),
-        "hunt_streak": esc(state.hunt_streak),
-        "stash_text": esc(stash_text),
-        "icon_hunt": icon("hunt"),
-        "icon_wheel": icon("wheel"),
-        "icon_craft": icon("craft"),
-        "shelf_objects": shelf_objects_html(state, 12),
-        "stash_grid": stash_html(state, 12, True),
-    }
-    deck = deck_page("/stash", render_page_template("stash-deck.html", values), partial, surface)
-    if deck:
-        return deck
-    content = render_page_template("stash-plain.html", values | {"nav": nav("/stash")})
-    return page(content, surface)
-
-
-def badges_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    badge_text = state.badges_view()
-    lit = sum(1 for _name, _note, unlocked in state.badge_rows() if unlocked)
-    total = len(state.badge_rows())
-    values = {
-        "lit": esc(lit),
-        "total": esc(total),
-        "badge_text": esc(badge_text),
-        "badges_grid": badges_html(state),
-    }
-    deck = deck_page("/badges", render_page_template("badges-deck.html", values), partial, surface)
-    if deck:
-        return deck
-    content = render_page_template("badges-plain.html", values | {"nav": nav("/badges")})
-    return page(content, surface)
-
-
-def ritual_page(result: str = "", partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    values = {
-        "quest_name": esc(state.quest_name),
-        "quest_prompt": esc(state.quest_prompt),
-        "result": esc(result or "No new ritual yet."),
-    }
-    deck = deck_page("/ritual", render_page_template("ritual-deck.html", values), partial, surface)
-    if deck:
-        return deck
-    content = render_page_template("ritual-plain.html", values | {"nav": nav("/ritual")})
-    return page(content, surface)
-
-
-def settings_page(partial: bool = False, surface: str = "web") -> bytes:
-    state = pocket_soul.RoomState.load()
-    words = body_words()
-    service = "online" if words.get("presence") == "reachable" else "offline"
-    values = {
-        "service": esc(service),
-        "notes_count": esc(len(state.notes)),
-        "relic_count": esc(len(state.relics)),
-        "net": esc(words["net"]),
-        "uptime": esc(words["uptime"]),
-    }
-    deck = deck_page("/settings", render_page_template("settings-deck.html", values), partial, surface)
-    if deck:
-        return deck
-    return page(render_page_template("settings-plain.html", values | {"nav": nav("/settings")}), surface)
-
-
-PAGE_RENDERERS = {
-    "/": doorstep,
-    "/room": room_page,
-    "/body": body_page,
-    "/notes": notes_page,
-    "/stash": stash_page,
-    "/badges": badges_page,
-    "/ritual": ritual_page,
-    "/settings": settings_page,
-}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -803,7 +642,7 @@ class Handler(BaseHTTPRequestHandler):
             return WebResponse(body if include_body else b"", content_type, status, cache)
         if path == "/relic":
             index = parse_relic_id(ctx.params.get("id"))
-            return WebResponse(relic_page(index) if include_body else b"")
+            return WebResponse(relic_text(index) if include_body else b"", "text/plain; charset=utf-8")
         if path == "/api/state":
             state = pocket_soul.RoomState.load().__dict__
             return WebResponse(json.dumps(state, ensure_ascii=False).encode() if include_body else b"", "application/json; charset=utf-8")
@@ -907,8 +746,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/bridge-flash":
             return WebResponse(latest_flash().encode() if include_body else b"", "text/plain; charset=utf-8")
         if path in SHELL_PATHS:
-            return WebResponse(route_page(path, partial=ctx.partial, surface=surface) if include_body else b"")
-        return WebResponse(doorstep(surface=surface) if include_body else b"")
+            return WebResponse(doorstep(partial=ctx.partial, surface=surface) if include_body else b"")
+        return WebResponse(b"not found\n" if include_body else b"", "text/plain; charset=utf-8", 404)
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -929,16 +768,7 @@ class Handler(BaseHTTPRequestHandler):
     def _post_page(self, path: str, data: dict[str, list[str]]) -> None:
         with ACTION_LOCK:
             result = run_action(path, data)
-        if path in {"/ritual", "/quest", "/postcard", "/nightly", "/bottle", "/bridge-flash", "/today"}:
-            self._send(ritual_page(result))
-            return
-        if path == "/note":
-            self._send(notes_page())
-            return
-        if path == "/doorbell":
-            self._send(room_page(result))
-            return
-        self._send(room_page(result))
+        self._send(doorstep(result))
 
     def log_message(self, fmt: str, *args) -> None:
         pocket_soul.append_log("web-access", fmt % args)

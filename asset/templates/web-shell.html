@@ -4,20 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Miri Deck</title>
-  <link rel="stylesheet" href="/asset/surfaces/common.css">
   <link rel="stylesheet" href="{stylesheet}">
 </head>
-<body class="cockpit-page surface-web" data-shell-paths="{shell_paths}">
-<main>
-<section class="deck-page {page_class}">
-  <aside class="sidebar">
-    <a class="brand-tile" href="{home_href}">Miri</a>
-    <nav class="side-nav">{nav}</nav>
-  </aside>
-  <div class="deck-main">
+<body class="web-page surface-web" data-shell-paths="{shell_paths}">
+<main class="web-shell">
+  <section class="web-main {page_class}">
 {content}
-  </div>
-</section>
+  </section>
 </main>
 <script src="{script_src}" defer></script>
 </body>

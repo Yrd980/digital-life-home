@@ -19,6 +19,8 @@ scripts/mind-dev.sh start
 scripts/web-dev.sh start
 ```
 
+`scripts/mind-dev.sh status` and `scripts/mind-dev.sh log` work without Hermes installed. `start` and `restart` need `MIRI_RUNTIME_ROOT` or a Hermes checkout at one of the known local paths.
+
 ## Check
 
 ```sh
@@ -28,8 +30,12 @@ scripts/mind-dev.sh status
 scripts/web-dev.sh status
 curl -sS http://127.0.0.1:8791/health
 curl -sS http://127.0.0.1:8787/api/live
+curl -sS -I http://127.0.0.1:8787/
+curl -sS -I http://127.0.0.1:8787/asset/room-night.jpg
 pocket-miri "say one short line about your body"
 ```
+
+If Hermes is not installed on the current machine, `scripts/mind-dev.sh status` should still report cleanly, but `/ask`, `/bridge`, and `pocket-miri` will not produce a mind turn until the runtime is available and the daemon is started.
 
 ## Device Rules
 

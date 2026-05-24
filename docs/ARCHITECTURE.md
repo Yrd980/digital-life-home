@@ -51,13 +51,27 @@ Notes are pinned room props. They can be seen in TUI/web as a tiny pinboard, but
 
 `pocket_web.py` owns routes, state reads, action handling, and small dynamic components. Static surface structure lives outside Python:
 
-- shell templates: `asset/templates/*-shell.html`
-- page body templates: `asset/templates/pages/*.html`
-- shared CSS: `asset/surfaces/common.css`
-- surface overrides: `asset/surfaces/web.css` and `asset/surfaces/board.css`
+- shell template: `asset/templates/web-shell.html`
+- room body template: `asset/templates/pages/room-web.html`
+- room stylesheet: `asset/surfaces/web.css`
 - browser behavior: `asset/surfaces/pocket-room.js`
+- room images and character sprites: `asset/*.jpg` and `asset/*.png`
 
 Keep HTML/CSS/JS split unless a value is truly dynamic device state.
+
+The browser room is a pseudo-game room, not a dashboard. `/` is the only public page: one fully visible room image, Miri's visible presence, a speech bubble, hidden air input, object hotspots, and local object lenses for pinned scraps, shelf objects, the marked day, and body lights. The public web shell should feel like one interaction page, without top-level Room/Body navigation or floating controls over the image. Add web abilities as room actions first; add separate pages only when the object needs a deeper inspection surface. JSON/text API routes under `/api/*` may remain for scripts and local integrations.
+
+The room runtime is layered in the page template:
+
+- `room-background`: the current room image
+- `ambient-fx`: dust, rain, bloom, screen glow, and small spark effects
+- `persistent-items`: CSS-drawn floor and shelf clutter tied to room flags
+- `miri-character`: Miri's visible body state
+- `hotspot-layer`: invisible object hit areas with hover glow
+- `foreground-layer`: simple occlusion props that make the room feel deeper
+- `floating-ui`: Miri bubble and hidden air input
+
+`pocket_web.py` computes the server-side runtime values: room phase, Miri state, bubble tone, and flags such as relics/stash/notes. `/api/live` returns the same values so `pocket-room.js` can refresh without a full page reload. The browser runtime owns minute-by-minute time phase, hover targeting, air prompt visibility, and small randomized Miri idle states.
 
 ## Extension Points
 

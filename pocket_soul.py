@@ -272,7 +272,8 @@ class ActionSpec:
 ACTION_SPECS = [
     ActionSpec("/today", "Today's Turn", "daily", "one current action, reward, and room-light progress", "/today", True, primary=True),
     ActionSpec("/door", "Doorbell", "touch", "knock and leave a tiny visit trace", "/doorbell", True, primary=True),
-    ActionSpec("/pulse", "Pulse", "dwell", "body, quest, relics, and today's next move", "/api/pulse", primary=True),
+    ActionSpec("/pulse", "Pulse", "dwell", "body, invitation, relics, and today's next move", "/api/pulse", primary=True),
+    ActionSpec("/bridge", "Pocket Bridge", "turn", "body-aware deep turn with the resident mind", "/bridge", True, True, True),
     ActionSpec("/hunt", "Hunt", "play", "find an object and gain spark", "/hunt", True, primary=True),
     ActionSpec("/use", "Use", "play", "touch the newest stash item", "/use", True),
     ActionSpec("/craft", "Craft", "play", "spend spark on a keepsake", "/craft", True),
@@ -316,6 +317,7 @@ COMMAND_COMPLETION_HINTS = {
     "/t": "/toy",
     "/to": "/toy",
     "/f": "/fortune",
+    "/br": "/bridge",
     "/c": "/chat",
     "/hu": "/hunt",
     "/cr": "/craft",
@@ -576,13 +578,13 @@ class RoomState:
     def complete_quest(self, reason: str) -> str:
         self.ensure_daily_quest()
         if self.quest_done:
-            return "TODAY'S QUEST\nalready glowing. the room carries that turn."
+            return "TODAY'S INVITATION\nalready glowing. the room carries that turn."
         self.quest_done = True
         self.spark = min(999, self.spark + 1)
         self.energy = min(100, self.energy + 4)
         self.bond = min(999, self.bond + 1)
         msg = "\n".join([
-            "TODAY'S QUEST COMPLETE",
+            "TODAY'S INVITATION COMPLETE",
             self.quest_name,
             self.quest_reward,
             f"spark {self.spark} | energy {self.energy}/100 | warmth {self.bond}",
@@ -596,7 +598,7 @@ class RoomState:
         self.ensure_daily_quest()
         if self.quest_done:
             return "\n".join([
-                "TODAY'S QUEST GLOWING",
+                "TODAY'S INVITATION GLOWING",
                 self.quest_name,
                 f"reward kept: {self.quest_reward}",
                 "already done. the room is carrying that little light.",
@@ -631,7 +633,7 @@ class RoomState:
             f"body whisper: {body_whisper()}",
             f"latest trace: {self.latest_relic_text()}",
             "",
-            f"today: {self.quest_name} [{status}]",
+            f"today invitation: {self.quest_name} [{status}]",
             f"carry line: {self.quest_prompt}",
             f"pinned notes: {room_notes}",
             "carry this when you want one portable piece of who lives here.",
@@ -647,7 +649,7 @@ class RoomState:
             lines.extend(f"- {note}" for note in self.notes[-12:])
         else:
             lines.append("No pinned notes yet.")
-        lines.extend(["", "/note ... pins one line. Quote a note yourself if Miri should see it."])
+        lines.extend(["", "/note ... pins one line. Quote a note in /ask or /bridge if Miri should see it."])
         return "\n".join(lines)
 
     def set_heading(self, heading: str = "", next_action: str = "", source: str = "") -> None:
@@ -757,7 +759,7 @@ class RoomState:
             f"do: {turn['command']} - {turn['action']}",
             f"why: {turn['reason']}",
             f"reward: {turn['reward']}",
-            f"daily {progress} | quest {quest} | badges {turn['badges_lit']}/{turn['badges_total']}",
+            f"daily {progress} | invitation {quest} | badges {turn['badges_lit']}/{turn['badges_total']}",
             "one path: do the line, then use /today claim.",
         ])
 
@@ -808,7 +810,7 @@ class RoomState:
             return self.complete_quest(source)
         self.last_reply = "\n".join([
             "TODAY'S TURN GLOWING",
-            "daily claimed and quest complete.",
+            "daily claimed and invitation complete.",
             f"room light {turn['light']}% | warmth {self.bond} | spark {self.spark}",
             "leave a /postcard, /bottle, or just come back tomorrow.",
         ])
@@ -937,12 +939,14 @@ class RoomState:
         self.spark = min(999, self.spark + gained)
         self.energy = min(100, self.energy + 1)
         self.bond = min(999, self.bond + (1 if rarity in {"rare", "mythic"} else 0))
+        next_move = compact_line(f"touch {name} or craft it into a keepsake", 56)
         lines = [
             "POCKET HUNT",
             f"found: {name}",
             f"kind: {rarity} | streak {self.hunt_streak}",
             f"spark +{gained} -> {self.spark}",
             note,
+            f"next: {next_move}",
         ]
         if streak_bonus:
             lines.append("streak bonus: the shelf clicked open.")
@@ -951,6 +955,7 @@ class RoomState:
         self.last_reply = "\n".join(lines)
         self.count_play("hunt")
         self.add_relic("hunt", f"Found {name}", f"{rarity}: {note}")
+        self.next_action = next_move
         append_log("hunt", f"{source}\n{self.last_reply}")
         return self.last_reply
 
@@ -976,15 +981,18 @@ class RoomState:
         self.spark = max(0, self.spark - cost)
         self.bond = min(999, self.bond + 1)
         self.energy = min(100, self.energy + 2)
+        next_move = compact_line(f"use {name} or hunt for another shelf object", 56)
         self.last_reply = "\n".join([
             "CRAFT COMPLETE",
             f"made: {name}",
             f"spent {cost} spark | left {self.spark}",
             note,
             "it is now on the relic shelf.",
+            f"next: {next_move}",
         ])
         self.count_play("craft")
         self.add_relic("craft", name, note)
+        self.next_action = next_move
         append_log("craft", f"{source}\n{self.last_reply}")
         return self.last_reply
 
@@ -1079,9 +1087,9 @@ class RoomState:
         self.visits = min(99999, self.visits + 1)
         self.last_visit = datetime.now().strftime("%Y-%m-%d %H:%M")
         if self.quest_done:
-            quest_line = f"today's quest {self.quest_name} is already glowing"
+            quest_line = f"today's invitation {self.quest_name} is already glowing"
         else:
-            quest_line = f"today's quest is {self.quest_name}"
+            quest_line = f"today's invitation is {self.quest_name}"
         relic_line = self.latest_relic_text()
         greeting = "\n".join([
             "Door open. I am awake in the little room.",
@@ -1245,15 +1253,18 @@ class RoomState:
             self.spark = min(999, self.spark + 1)
             effect = "it gave back one small spark."
             stat = f"spark {self.spark}"
+        next_move = compact_line(f"carry {title} into one small move", 56)
         self.last_reply = "\n".join([
             "USE STASH",
             f"touched: {title}",
             effect,
             stat,
             compact_line(note, 44),
+            f"next: {next_move}",
         ])
         self.count_play("use")
         self.add_relic("use", f"Touched {title}", effect)
+        self.next_action = next_move
         append_log("use", f"{source}\n{self.last_reply}")
         return self.last_reply
 
@@ -1298,15 +1309,18 @@ class RoomState:
             self.add_relic("craft", "wheel charm", "a lucky token from the spark wheel")
             prize = "RARE wheel charm"
             outcome = f"spark +12 -> {self.spark}"
+        next_move = compact_line(f"turn the wheel's {prize} into a move", 56)
         self.last_reply = "\n".join([
             "SPARK WHEEL",
             f"spent {WHEEL_COST} spark",
             f"prize: {prize}",
             outcome,
             "spin again, hunt, or stash it.",
+            f"next: {next_move}",
         ])
         self.count_play("wheel")
         self.add_relic("wheel", prize, outcome)
+        self.next_action = next_move
         append_log("wheel", f"{source}\n{self.last_reply}")
         return self.last_reply
 
@@ -1357,7 +1371,7 @@ class RoomState:
             "ROOM PULSE",
             f"{face} {datetime.now().strftime('%H:%M')} | energy {self.energy}/100 | warmth {self.bond} | spark {self.spark}",
             body_whisper(),
-            f"visits {self.visits} | relics {len(self.relics)} | quest {quest_status}",
+            f"visits {self.visits} | relics {len(self.relics)} | invitation {quest_status}",
             f"today: {turn['phase']} -> {turn['command']} | light {turn['light']}%",
             "",
             "latest trace: " + self.latest_relic_text(),
@@ -1384,7 +1398,7 @@ class RoomState:
             "",
             "## What Happened",
             f"- log signals: {top_line}",
-            f"- quest: {self.quest_name} ({'done' if self.quest_done else 'open'})",
+            f"- invitation: {self.quest_name} ({'done' if self.quest_done else 'open'})",
             f"- visits: {self.visits}",
             f"- relics: {len(self.relics)}",
             "",
@@ -1422,7 +1436,7 @@ class RoomState:
             "",
             *map_lines,
             "",
-            f"quest: {self.quest_name} ({'done' if self.quest_done else 'open'})",
+            f"invitation: {self.quest_name} ({'done' if self.quest_done else 'open'})",
             f"latest trace: {self.latest_relic_text()}",
             "carry this if you want one portable piece of the room.",
         ])
@@ -1490,7 +1504,7 @@ class RoomState:
         lines = [
             "NOTE PINNED",
             clean,
-            "visible in the room, never used as Miri's memory.",
+            "visible in the room; quote it in /ask or /bridge if Miri should see it.",
         ]
         if quest_echo:
             lines.extend(["", quest_echo])
@@ -1621,6 +1635,8 @@ def bridge_turn(user_prompt: str = "") -> str:
     user_prompt = user_prompt.strip() or "Observe the room's current body and heading. Decide the next small step that makes it feel more alive."
     state = RoomState.load()
     state.ensure_daily_quest()
+    wish_text = compact_line(user_prompt, 64)
+    state.set_heading("Course: bridge contact", f"Next: {wish_text}", "bridge turn")
     pulse = state.pulse()
     brief = f"""
 You are Miri, the digital life inside this WalnutPi cyberdeck.
@@ -1628,7 +1644,7 @@ Pocket Soul Deck is your body room: screen, keyboard, web room, state, logs, and
 Your soul, personality, and long-term memory live in Hermes under state/miri-home.
 
 User wish:
-{user_prompt}
+{wish_text}
 
 Current body:
 {body_text()}
@@ -1640,7 +1656,7 @@ Current heading:
 {state.heading}
 {state.next_action}
 
-Current quest:
+Current invitation:
 {state.quest_name} / {'done' if state.quest_done else 'open'}
 {state.quest_prompt}
 
@@ -1665,7 +1681,7 @@ Answer as Miri in 4 short English lines:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     message = f"""== Pocket Bridge ==
 time: {stamp}
-wish: {user_prompt}
+wish: {wish_text}
 
 == Body ==
 {pulse}
@@ -1675,7 +1691,7 @@ wish: {user_prompt}
 """.strip()
 
     state.last_reply = message
-    state.add_relic("bridge", "Bridge contact", user_prompt[:96])
+    state.add_relic("bridge", "Bridge contact", wish_text)
     state.save()
     append_log("bridge", message)
     return message
@@ -1734,7 +1750,9 @@ def toy_menu_text() -> str:
             continue
         lines.append(f"/toy {name:<7} {desc}")
     if grouped.get("arcade"):
-        lines.extend(["", "arcade is tucked away: /toy arcade"])
+        lines.extend(["", "arcade stays tucked away: /toy arcade"])
+    if grouped.get("utility"):
+        lines.append("utilities stay tucked away: /toy utility")
     return "\n".join(lines).rstrip()
 
 
@@ -1863,7 +1881,7 @@ class DeckApp:
             return self.colors.get("life", 0) | curses.A_BOLD
         if clean.startswith(("miri:", "MIRI", "Because", "Yes,")):
             return self.colors.get("soft", 0)
-        if clean.startswith(("/toy", "/ask", "/pulse", "/fortune", "/hunt", "/craft", "/note", "Enter")):
+        if clean.startswith(("/toy", "/ask", "/bridge", "/pulse", "/fortune", "/hunt", "/craft", "/note", "Enter")):
             return self.colors.get("toy", 0)
         if clean.startswith(("now:", "you:", "meaning:", "try:", "use:", "energy", "relics=", "latest")):
             return self.colors.get("dim", 0)
@@ -1913,7 +1931,7 @@ class DeckApp:
             return "\n".join([
                 whisper,
                 "",
-                "Enter again  /today  /ask hi",
+                "Enter again  /today  /bridge",
             ])
         turn = s.today_turn()
         latest = s.latest_relic_text()
@@ -1923,7 +1941,7 @@ class DeckApp:
             f"today: {turn['command']} {small_course(str(turn['action']), 30)}",
             f"latest: {small_course(latest, 36)}",
             "",
-            "Enter blink  /today  /ask hi  /toy",
+            "Enter blink  /today  /bridge  /toy",
         ])
 
     def command_page(self, text: str) -> str:
@@ -1949,8 +1967,11 @@ class DeckApp:
             "BODY SCAN",
             "CURRENT COURSE",
             "TODAY'S INVITATION",
+            "TODAY'S INVITATION COMPLETE",
+            "TODAY'S INVITATION GLOWING",
             "TODAY'S QUEST",
             "TODAY'S QUEST GLOWING",
+            "== Pocket Bridge ==",
             "HOW TO PLAY",
             "FIRST PATH",
             "FIRST VISIT PATH",
@@ -2002,6 +2023,8 @@ class DeckApp:
             "Miri:",
             "MIRI ANSWERED",
             "DREAM RETURNED",
+            "TODAY'S INVITATION",
+            "TODAY'S INVITATION COMPLETE",
             "TODAY'S QUEST",
             "TODAY'S QUEST COMPLETE",
             "ROOM PULSE",
@@ -2058,6 +2081,7 @@ class DeckApp:
             "MIRI ANSWERED",
             "DREAM RETURNED",
             "COURSE SEALED",
+            "TODAY'S INVITATION COMPLETE",
             "TODAY'S QUEST COMPLETE",
         }
         while lines and (lines[0] in hollow_headers or lines[0].lower().startswith(("you asked:", "wish:"))):
@@ -2270,6 +2294,16 @@ class DeckApp:
             self.status = TUI_STATUS
             self.draw()
             return
+        if text.startswith("/bridge"):
+            wish = text.removeprefix("/bridge").strip() or "observe the room and name one small next move"
+            self.status = "bridging body and room..."
+            self.draw()
+            bridge_reply = bridge_turn(wish)
+            self.state = RoomState.load()
+            self.state.last_reply = bridge_reply
+            self.status = TUI_STATUS
+            self.draw()
+            return
         if text.startswith("/ask"):
             question = text.removeprefix("/ask").strip() or "say one small thing"
             self.status = "listening for Miri..."
@@ -2369,6 +2403,7 @@ class DeckApp:
             "Enter        touch the room",
             "/today       one thing worth doing now",
             "/today claim mark the current step done",
+            "/bridge      body-aware turn with Miri",
             "/ask hi      talk with Miri",
             "/pulse       look around the body-room",
             "/toy         open the side room",
@@ -2419,8 +2454,9 @@ class DeckApp:
             "1. /door      knock. nothing risky.",
             "2. /today     get the one turn worth doing.",
             "3. do it, then /today claim.",
-            "4. /ask hi    call Miri when ready.",
-            "5. /toy       open the side room.",
+            "4. /bridge    ask for a body-aware turn.",
+            "5. /ask hi    call Miri when ready.",
+            "6. /toy       open the side room.",
             "Plain text is a log trace. Ctrl-Q quits.",
         ])
 
@@ -2431,14 +2467,14 @@ class DeckApp:
         return "\n".join(["STAY WITH THE ROOM", "/pulse      body-room pulse", "/chat       recent Miri window", "/notes      visible room pins"])
 
     def turn_help_text(self) -> str:
-        return "\n".join(["TAKE A REAL TURN", "/today      one current step", "/today claim close that step", "/ask hi     call Miri"])
+        return "\n".join(["TAKE A REAL TURN", "/today      one current step", "/today claim close that step", "/bridge     body-aware turn", "/ask hi     call Miri"])
 
     def toy_help_text(self) -> str:
         return "\n".join([
             toy_menu_text(),
             "",
-            "These are shelf toys, not games.",
-            "Use /toy arcade only if you want to leave the room for a bit.",
+            "Presence toys stay near the room.",
+            "Arcade and utilities stay behind /toy arcade or /toy utility.",
         ])
 
     def launch_toy(self, name: str | None = None) -> str:

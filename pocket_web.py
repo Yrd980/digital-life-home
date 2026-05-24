@@ -58,7 +58,44 @@ ASSETS = {
     "robot_happy": "/asset/happy.png",
     "robot_sad": "/asset/sleep.png",
 }
+PIECE_MANIFEST = ASSET_DIR / "pieces" / "manifest.json"
+SHELF_PIECE_SLUGS = (
+    "coffee-mug",
+    "open-notebook",
+    "tiny-keyboard",
+    "cassette",
+    "small-screwdriver",
+    "star-bottle",
+    "cable-bundle",
+    "mini-robot",
+)
+PINBOARD_PIECE_SLUGS = (
+    "todo-list",
+    "thank-you",
+    "photo-note",
+    "polaroid-desk",
+    "daily-checklist",
+)
 
+
+def load_piece_manifest() -> dict[str, dict[str, object]]:
+    if not PIECE_MANIFEST.is_file():
+        return {}
+    try:
+        data = json.loads(PIECE_MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    pieces = data.get("pieces", [])
+    if not isinstance(pieces, list):
+        return {}
+    return {
+        str(piece.get("slug", "")): piece
+        for piece in pieces
+        if isinstance(piece, dict) and piece.get("slug")
+    }
+
+
+ROOM_PIECES = load_piece_manifest()
 
 
 def esc(value: object) -> str:
@@ -69,13 +106,50 @@ def asset(name: str) -> str:
     return ASSETS[name]
 
 
+def piece_img_html(slug: str, class_name: str = "") -> str:
+    piece = ROOM_PIECES.get(slug)
+    if not piece:
+        return ""
+    label = esc(piece.get("label", slug))
+    classes = f"room-piece {class_name}".strip()
+    return f"<img class='{esc(classes)}' src='{esc(piece.get('src', ''))}' alt='{label}' loading='lazy'>"
+
+
+def piece_map_html(slugs: tuple[str, ...], class_name: str) -> str:
+    items = []
+    for slug in slugs:
+        piece = ROOM_PIECES.get(slug)
+        box = piece.get("normalized_box") if piece else None
+        if not piece or not isinstance(box, list) or len(box) != 4:
+            continue
+        x0, y0, x1, y1 = [float(value) for value in box]
+        style = (
+            f"--piece-x:{x0 * 100:.2f}%;"
+            f"--piece-y:{y0 * 100:.2f}%;"
+            f"--piece-w:{(x1 - x0) * 100:.2f}%;"
+            f"--piece-h:{(y1 - y0) * 100:.2f}%;"
+        )
+        label = esc(piece.get("label", slug))
+        items.append(
+            "<figure "
+            f"class='piece-map-item piece-{esc(slug)}' "
+            f"style='{esc(style)}' "
+            f"title='{label}'>"
+            f"<img src='{esc(piece.get('src', ''))}' alt='{label}' loading='lazy'>"
+            "</figure>"
+        )
+    if not items:
+        return ""
+    return f"<div class='piece-map {esc(class_name)}'>" + "".join(items) + "</div>"
+
+
 def render_page_template(name: str, values: dict[str, object]) -> str:
     template = (PAGE_TEMPLATE_DIR / name).read_text(encoding="utf-8")
     return template.format_map(values)
 
 
 def surface_stylesheet(surface: str) -> str:
-    return "/asset/surfaces/web.css"
+    return "/asset/surfaces/web.css?v=room-glow-20260524"
 
 
 def surface_path(path: str, surface: str = "web") -> str:
@@ -276,27 +350,13 @@ def web_room_values(state: pocket_soul.RoomState, result: str = "") -> dict[str,
     }
 
 
-def shelf_objects_html(state: pocket_soul.RoomState, limit: int = 8) -> str:
-    items = state.stash_items(limit)
-    if items:
-        charms = [relic_charm_html(item.get("kind", "hunt"), item.get("title", "stash object")) for item in items]
-        return "<div class='shelf-objects'>" + "".join(charms) + "</div>"
-    return (
-        "<p class='shelf-empty'>The shelf is waiting for its first useful little thing.</p>"
-        "<div class='shelf-objects'>"
-        + relic_charm_html("hunt", "hunt")
-        + relic_charm_html("wheel", "spark wheel")
-        + relic_charm_html("craft", "craft")
-        + "</div>"
-    )
-
-
 def web_pinboard_panel_html(state: pocket_soul.RoomState) -> str:
     if state.notes:
         notes = "".join(f"<li>{esc(note)}</li>" for note in state.notes[-8:][::-1])
     else:
         notes = "<li>The pinboard is empty.</li>"
     return f"""
+{piece_map_html(PINBOARD_PIECE_SLUGS, "piece-map-pinboard")}
 <form class='note-form' method='post' action='/note' data-action='async'>
   <input name='note' placeholder='Pin a visible note'>
   <button>Pin</button>
@@ -308,7 +368,7 @@ def web_pinboard_panel_html(state: pocket_soul.RoomState) -> str:
 
 def web_shelf_panel_html(state: pocket_soul.RoomState) -> str:
     return f"""
-{shelf_objects_html(state, 12)}
+{piece_map_html(SHELF_PIECE_SLUGS, "piece-map-shelf")}
 {stash_html(state, 10, True)}
 """
 
@@ -323,6 +383,7 @@ def web_daily_panel_html(state: pocket_soul.RoomState) -> str:
     light = max(0, min(100, int(turn["light"])))
     return f"""
 <section class='daily-card' style='--turn-light:{light}%'>
+  {piece_img_html("daily-checklist", "daily-scrap")}
   <h2>{action}</h2>
   <p>{reason}</p>
   <div class='turn-meter' aria-hidden='true'><span></span></div>
@@ -346,7 +407,7 @@ def web_body_panel_html(state: pocket_soul.RoomState) -> str:
         f"<article><span>{esc(label)}</span><b>{esc(value)}</b><small>{esc(detail)}</small></article>"
         for label, value, detail in rows
     )
-    return f"<div class='body-grid room-body-grid'>{cards}</div>"
+    return f"<div class='body-portrait'>{piece_img_html('mini-robot', 'body-scrap')}</div><div class='body-grid room-body-grid'>{cards}</div>"
 
 
 def stash_html(state: pocket_soul.RoomState, limit: int = 8, interactive: bool = False) -> str:
@@ -568,7 +629,7 @@ def relic_action(index: int, action: str) -> str:
     return "Unknown relic action."
 
 
-SCRIPT_SRC = "/asset/surfaces/pocket-room.js"
+SCRIPT_SRC = "/asset/surfaces/pocket-room.js?v=room-glow-20260524"
 
 
 

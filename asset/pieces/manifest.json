@@ -1,0 +1,355 @@
+{
+  "pieces": [
+    {
+      "slug": "coffee-mug",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/coffee-mug.webp",
+      "role": "shelf",
+      "label": "coffee mug",
+      "box": [
+        34,
+        92,
+        386,
+        494
+      ],
+      "normalized_box": [
+        0.0221,
+        0.0898,
+        0.2513,
+        0.4824
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        352,
+        402
+      ]
+    },
+    {
+      "slug": "open-notebook",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/open-notebook.webp",
+      "role": "shelf",
+      "label": "open notebook",
+      "box": [
+        418,
+        84,
+        752,
+        494
+      ],
+      "normalized_box": [
+        0.2721,
+        0.082,
+        0.4896,
+        0.4824
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        334,
+        410
+      ]
+    },
+    {
+      "slug": "tiny-keyboard",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/tiny-keyboard.webp",
+      "role": "shelf",
+      "label": "tiny keyboard",
+      "box": [
+        760,
+        82,
+        1112,
+        494
+      ],
+      "normalized_box": [
+        0.4948,
+        0.0801,
+        0.724,
+        0.4824
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        352,
+        412
+      ]
+    },
+    {
+      "slug": "cassette",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/cassette.webp",
+      "role": "shelf",
+      "label": "cassette",
+      "box": [
+        1184,
+        96,
+        1472,
+        494
+      ],
+      "normalized_box": [
+        0.7708,
+        0.0938,
+        0.9583,
+        0.4824
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        288,
+        398
+      ]
+    },
+    {
+      "slug": "small-screwdriver",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/small-screwdriver.webp",
+      "role": "shelf",
+      "label": "small screwdriver",
+      "box": [
+        34,
+        540,
+        364,
+        934
+      ],
+      "normalized_box": [
+        0.0221,
+        0.5273,
+        0.237,
+        0.9121
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        330,
+        394
+      ]
+    },
+    {
+      "slug": "star-bottle",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/star-bottle.webp",
+      "role": "shelf",
+      "label": "star bottle",
+      "box": [
+        440,
+        540,
+        724,
+        936
+      ],
+      "normalized_box": [
+        0.2865,
+        0.5273,
+        0.4714,
+        0.9141
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        284,
+        396
+      ]
+    },
+    {
+      "slug": "cable-bundle",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/cable-bundle.webp",
+      "role": "shelf",
+      "label": "cable bundle",
+      "box": [
+        808,
+        548,
+        1122,
+        936
+      ],
+      "normalized_box": [
+        0.526,
+        0.5352,
+        0.7305,
+        0.9141
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        314,
+        388
+      ]
+    },
+    {
+      "slug": "mini-robot",
+      "source": "/asset/items.jpg",
+      "src": "/asset/pieces/mini-robot.webp",
+      "role": "body",
+      "label": "mini robot",
+      "box": [
+        1208,
+        548,
+        1468,
+        938
+      ],
+      "normalized_box": [
+        0.7865,
+        0.5352,
+        0.9557,
+        0.916
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        260,
+        390
+      ]
+    },
+    {
+      "slug": "todo-list",
+      "source": "/asset/sticker.jpg",
+      "src": "/asset/pieces/todo-list.webp",
+      "role": "pinboard",
+      "label": "to do list",
+      "box": [
+        150,
+        70,
+        506,
+        472
+      ],
+      "normalized_box": [
+        0.0977,
+        0.0684,
+        0.3294,
+        0.4609
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        356,
+        402
+      ]
+    },
+    {
+      "slug": "thank-you",
+      "source": "/asset/sticker.jpg",
+      "src": "/asset/pieces/thank-you.webp",
+      "role": "pinboard",
+      "label": "thank you",
+      "box": [
+        586,
+        44,
+        966,
+        448
+      ],
+      "normalized_box": [
+        0.3815,
+        0.043,
+        0.6289,
+        0.4375
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        380,
+        404
+      ]
+    },
+    {
+      "slug": "photo-note",
+      "source": "/asset/sticker.jpg",
+      "src": "/asset/pieces/photo-note.webp",
+      "role": "pinboard",
+      "label": "photo note",
+      "box": [
+        1060,
+        78,
+        1460,
+        466
+      ],
+      "normalized_box": [
+        0.6901,
+        0.0762,
+        0.9505,
+        0.4551
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        400,
+        388
+      ]
+    },
+    {
+      "slug": "polaroid-desk",
+      "source": "/asset/sticker.jpg",
+      "src": "/asset/pieces/polaroid-desk.webp",
+      "role": "pinboard",
+      "label": "desk polaroid",
+      "box": [
+        292,
+        548,
+        736,
+        922
+      ],
+      "normalized_box": [
+        0.1901,
+        0.5352,
+        0.4792,
+        0.9004
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        444,
+        374
+      ]
+    },
+    {
+      "slug": "daily-checklist",
+      "source": "/asset/sticker.jpg",
+      "src": "/asset/pieces/daily-checklist.webp",
+      "role": "daily",
+      "label": "daily checklist",
+      "box": [
+        758,
+        548,
+        1138,
+        922
+      ],
+      "normalized_box": [
+        0.4935,
+        0.5352,
+        0.7409,
+        0.9004
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "output_size": [
+        380,
+        374
+      ]
+    }
+  ]
+}

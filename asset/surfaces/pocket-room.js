@@ -113,6 +113,26 @@ function setHotspot(name = '') {
   if (currentRoom) currentRoom.dataset.hotspot = name;
 }
 
+function setPointerGlow(event) {
+  const stage = event.target.closest?.('.game-stage');
+  const currentRoom = stage?.closest?.('[data-room]');
+  if (!stage || !currentRoom) return;
+  const bounds = stage.getBoundingClientRect();
+  const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+  const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+  currentRoom.style.setProperty('--cursor-x', `${Math.max(0, Math.min(100, x)).toFixed(2)}%`);
+  currentRoom.style.setProperty('--cursor-y', `${Math.max(0, Math.min(100, y)).toFixed(2)}%`);
+  currentRoom.classList.add('is-pointer-active');
+}
+
+function clearPointerGlow(event) {
+  const stage = event.target.closest?.('.game-stage');
+  if (!stage) return;
+  const nextStage = event.relatedTarget?.closest?.('.game-stage');
+  if (nextStage === stage) return;
+  stage.closest?.('[data-room]')?.classList.remove('is-pointer-active');
+}
+
 function showAirPrompt(seed = '') {
   const form = airPrompt();
   if (!form) return;
@@ -284,8 +304,11 @@ document.addEventListener('pointerover', (event) => {
   if (target) setHotspot(target.dataset.hotspot || '');
 });
 
+document.addEventListener('pointermove', setPointerGlow);
+
 document.addEventListener('pointerout', (event) => {
   const target = event.target.closest?.('[data-hotspot]');
+  clearPointerGlow(event);
   if (!target) return;
   const next = event.relatedTarget;
   if (next && target.contains(next)) return;

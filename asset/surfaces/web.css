@@ -33,15 +33,15 @@ body {
 }
 
 .game-room {
-  padding: 10px;
+  padding: 0;
 }
 
 .game-stage {
   position: relative;
-  border: 1px solid #ffffff18;
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: #050504;
-  box-shadow: inset 0 1px 0 #ffffff14;
+  box-shadow: inset 0 0 90px #00000085;
 }
 
 .game-stage::after {
@@ -80,7 +80,7 @@ body {
 }
 
 .game-room.is-night .game-stage {
-  box-shadow: inset 0 1px 0 #ffffff14, inset 0 0 80px #0d102080;
+  box-shadow: inset 0 0 90px #00000085, inset 0 0 80px #0d102080;
 }
 
 .room-frame {
@@ -427,6 +427,12 @@ body {
   pointer-events: none;
   transition: filter .35s ease, transform .5s ease;
   animation: miri-breathe 5.5s ease-in-out infinite;
+}
+
+@media (min-aspect-ratio: 16 / 10) {
+  .room-photo {
+    object-fit: cover;
+  }
 }
 
 .game-room[data-miri-idle='looking'] .miri-character {
@@ -784,7 +790,7 @@ body {
   border: 1px solid #ffffff18;
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 14px 34px #0008, inset 0 1px 0 #ffffff14;
+  box-shadow: 0 18px 42px #0009, inset 0 1px 0 #ffffff14;
 }
 
 .miri-bubble {
@@ -905,7 +911,6 @@ body {
   outline: 1px solid #f0c96aaa;
 }
 
-.talk-form,
 .note-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -913,7 +918,6 @@ body {
   margin-top: 8px;
 }
 
-.talk-form input,
 .note-form input {
   min-width: 0;
   min-height: 36px;
@@ -925,7 +929,6 @@ body {
   font: inherit;
 }
 
-.talk-form input:focus,
 .note-form input:focus {
   outline: 1px solid #f0c96a99;
 }
@@ -973,7 +976,7 @@ button:disabled {
   min-height: 0;
   border: 0;
   border-radius: 0;
-  background: #0003;
+  background: radial-gradient(circle at var(--lens-x) var(--lens-y), transparent 0 16%, #00000048 58%, #00000073 100%);
   box-shadow: none;
 }
 
@@ -985,7 +988,9 @@ button:disabled {
   max-height: min(560px, calc(100dvh - 36px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: var(--panel-strong);
+  background:
+    radial-gradient(circle at 50% 0, #f0c96a16 0%, transparent 38%),
+    var(--panel-strong);
   overflow: hidden;
   backdrop-filter: blur(12px);
   transform: translate(-50%, -50%);
@@ -1009,11 +1014,6 @@ button:disabled {
 .room-drawer[data-panel-name='body'] {
   --lens-x: 66%;
   --lens-y: 50%;
-}
-
-.room-drawer[data-panel-name='talk'] {
-  --lens-x: 50%;
-  --lens-y: 62%;
 }
 
 .object-lens header {
@@ -1070,8 +1070,8 @@ button:disabled {
   overflow: hidden;
   border-radius: 8px;
   background:
-    radial-gradient(circle at 50% 18%, #f0c96a12 0%, transparent 46%),
-    #090907b8;
+    radial-gradient(circle at 50% 18%, #f0c96a18 0%, transparent 46%),
+    linear-gradient(145deg, #120f0bdb, #070806e8);
 }
 
 .piece-map-item {
@@ -1457,8 +1457,20 @@ button:disabled {
 .game-room.is-action-body .body-scrap,
 .game-room.is-action-body .fx-screen-glow,
 .game-room.is-surface-body .fx-screen-glow,
-.game-room.is-surface-blink .fx-screen-glow {
+.game-room.is-surface-blink .fx-screen-glow,
+.game-room.is-body-holding .fx-screen-glow {
   animation: body-pulse .9s ease;
+}
+
+.game-room.is-body-holding .zone-body::before {
+  opacity: .72;
+  animation: body-hold-pulse 1.35s ease-in-out infinite;
+}
+
+.game-room.is-body-holding .miri-character {
+  --miri-look-x: 12px;
+  --miri-tilt: 2.5deg;
+  filter: drop-shadow(0 20px 18px #0008) drop-shadow(0 0 18px #76e2d266);
 }
 
 .game-room.is-action-find .fx-dust {
@@ -1781,6 +1793,17 @@ button:disabled {
   }
 }
 
+@keyframes body-hold-pulse {
+  0%, 100% {
+    opacity: .38;
+    transform: translate(-50%, -50%) scale(.88);
+  }
+  50% {
+    opacity: .78;
+    transform: translate(-50%, -50%) scale(1.24);
+  }
+}
+
 @keyframes dust-swirl {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
@@ -1913,44 +1936,5 @@ button:disabled {
     animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
-  }
-}
-
-@media (max-width: 760px) {
-  .game-room {
-    padding: 8px;
-  }
-
-  .miri-bubble {
-    bottom: 22%;
-    width: calc(100% - 20px);
-    padding: 9px;
-  }
-
-  .room-photo {
-    object-fit: cover;
-  }
-
-  .miri-line {
-    max-height: 58px;
-  }
-
-  .miri-character {
-    width: clamp(120px, 34vw, 210px);
-  }
-
-  .foreground-cable,
-  .item-books {
-    display: none;
-  }
-
-  .object-lens {
-    left: 10px;
-    right: 10px;
-    top: auto;
-    bottom: 10px;
-    width: calc(100% - 20px);
-    max-height: 62dvh;
-    transform: none;
   }
 }

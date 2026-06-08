@@ -58,11 +58,6 @@ const PANEL_LINES = {
     'The room body hums under the lamp.',
     'A teal pulse rolls through the room body.',
     'Warm glass answers from under the light.'
-  ],
-  talk: [
-    'Miri is listening from the floor.',
-    'Miri tilts toward the whisper spot.',
-    'The room quiets down around Miri.'
   ]
 };
 const MIRI_SPRITES = {
@@ -232,6 +227,8 @@ let recentTouchTimer = 0;
 let rapidTouchTimer = 0;
 let ambientSurpriseTimer = 0;
 let touchHistory = [];
+let knockHistory = [];
+let bodyHoldTimer = 0;
 
 function room() {
   return document.querySelector('[data-room]');
@@ -301,6 +298,15 @@ function noteTouchTempo() {
   touchHistory.push(now);
   if (touchHistory.length < 5) return false;
   touchHistory = [];
+  return true;
+}
+
+function noteKnockTempo() {
+  const now = Date.now();
+  knockHistory = knockHistory.filter((time) => now - time < 1800);
+  knockHistory.push(now);
+  if (knockHistory.length < 3) return false;
+  knockHistory = [];
   return true;
 }
 
@@ -533,6 +539,13 @@ function pulseAction(name, result = '') {
   const currentRoom = room();
   if (!currentRoom) return;
   const touchKey = TOUCH_KEY_BY_ACTION[name] || name;
+  if (name === 'knock' && noteKnockTempo()) {
+    const combo = COMBO_REACTIONS.find((item) => item.className === 'door-miri');
+    if (triggerCombo(combo)) {
+      rememberTouch(touchKey);
+      return;
+    }
+  }
   const combo = comboFor(touchKey);
   if (combo && triggerCombo(combo, result)) return;
   if (maybeReactToRapidTouch()) {
@@ -567,6 +580,28 @@ function pulseAction(name, result = '') {
     currentRoom.classList.remove('is-busy', `is-action-${name}`);
     setMiriIdleState('listening');
   }, 1300);
+}
+
+function startBodyHold() {
+  const currentRoom = room();
+  if (!currentRoom) return;
+  window.clearTimeout(bodyHoldTimer);
+  bodyHoldTimer = window.setTimeout(() => {
+    currentRoom.classList.add('is-body-holding');
+    currentRoom.dataset.hotspot = 'body';
+    setRoomSurface('body-hold', 1800);
+    setMiriGaze('body', 1800);
+    setMiriIdleState('thinking');
+    setBubble('The teal pulse deepens under your hand.', '', 'system');
+  }, 360);
+}
+
+function endBodyHold() {
+  const currentRoom = room();
+  window.clearTimeout(bodyHoldTimer);
+  if (!currentRoom?.classList.contains('is-body-holding')) return;
+  currentRoom.classList.remove('is-body-holding');
+  pulseAction('body');
 }
 
 function showAirPrompt(seed = '') {
@@ -712,7 +747,7 @@ function pokePiece(figure) {
 document.addEventListener('submit', (event) => {
   const form = event.target;
   if (!form) return;
-  if (form.matches('[data-air-prompt-form], [data-local-talk]')) {
+  if (form.matches('[data-air-prompt-form]')) {
     event.preventDefault();
     submitWhisper(form);
   }
@@ -721,6 +756,14 @@ document.addEventListener('submit', (event) => {
     pinLocalNote(form);
   }
 });
+
+document.addEventListener('pointerdown', (event) => {
+  const bodyTarget = event.target.closest?.(".zone-body, [data-local-action='body']");
+  if (bodyTarget) startBodyHold();
+});
+
+document.addEventListener('pointerup', endBodyHold);
+document.addEventListener('pointercancel', endBodyHold);
 
 document.addEventListener('click', (event) => {
   const panelTarget = event.target.closest('[data-panel-target]');
@@ -783,7 +826,7 @@ document.addEventListener('keydown', (event) => {
   );
   if (typing) {
     if (event.key === 'Enter') {
-      const form = target.closest?.('[data-air-prompt-form], [data-local-talk], [data-local-note]');
+      const form = target.closest?.('[data-air-prompt-form], [data-local-note]');
       if (form) {
         event.preventDefault();
         form.requestSubmit();

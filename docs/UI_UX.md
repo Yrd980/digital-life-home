@@ -4,6 +4,8 @@ This branch is a pure static Web UI.
 
 The goal is one interactive browser room: Miri is present, the room can be touched, objects react locally, and no backend/TUI/device runtime is required.
 
+This branch targets desktop/laptop Web only. Do not add mobile-specific layouts, mobile bottom sheets, or phone-first interaction variants.
+
 ## Product Target
 
 Miri Deck UI should feel like an interactive diorama, not a dashboard, command app, chatbot shell, or settings surface.
@@ -91,11 +93,13 @@ Page behavior:
 - clicking action zones gives a short local animation and bubble line
 - typing starts the whisper input
 - `Escape` closes input or lens
-- mobile browser lenses become bottom sheets
+- object lenses stay spatial desktop close-ups
 
 ## Playfulness Direction
 
 Make the room more fun through room behavior, not extra UI.
+
+The intended mode is light gamification through tactile discovery. More precisely, it should feel like an ambient toy or cozy desktop companion: users touch the room, notice small differences, and slowly learn that Miri and the room respond. It should not feel like a game menu, productivity app, quest log, or progression system.
 
 Preferred interactions:
 
@@ -110,16 +114,55 @@ Preferred interactions:
 - object pieces can be poked inside lenses
 - typing feels like leaving a whisper
 - night mode feels slower and warmer
+- repeated touches can vary through short reaction pools
+- related touches can create hidden combinations within a short session window
+- Miri can show gentle boundaries when interrupted too often
+- room mood can exist as session-only behavior, not as visible stats
 
 Avoid:
 
 - visible toy menus
 - reward systems
 - badges, counters, streaks, XP
+- currency, inventory, level, hunger, affection, or score bars
+- quests, task chains, achievements, or completion checklists
 - confetti or large effects
 - mini-games inside lenses
 - permanent floating controls
 - lore-heavy instructional copy
+
+## Ambient Toy Principles
+
+The room should be playful through materials, timing, and presence.
+
+Use these principles when adding new interactions:
+
+- Touch before explanation: users should discover affordances by seeing small unusual movements, not by reading instructions.
+- Material response: each area should feel physically different. Wood knocks, paper flutters, shelf objects wobble, Daily ticks, Body pulses, Craft sparks.
+- Aftertaste matters: touches should leave one to two seconds of room change, such as Miri looking over, light shifting, dust settling, or an object returning to rest.
+- Variation without systems: repeat clicks can draw from small reaction pools or alternate animations without exposing randomness as a mechanic.
+- Hidden combinations, not quests: short local chains can create special responses, but the page should never show a combo list.
+- Miri is present, not controllable: Miri may follow attention, doze, react to interruption, or soften a whisper, but should not become a commandable avatar.
+- Local and reversible: interaction state should be session-only unless the user explicitly asks for persistence.
+
+Good next-play candidates:
+
+- slow hover near Miri makes her quietly track the pointer
+- press-and-hold on Body deepens the teal pulse, then releases
+- quick repeated knocks make Miri look at the door before looking back
+- shelf object micro-toys: mug warmth, cassette rewind, keyboard tap, bottle sparkle, cable curl
+- pinboard paper responds differently after touching notebook or Daily
+- time-based mood changes: morning Daily brighter, night Body slower, late-night Miri sleepier
+- ambient surprise every so often, only when the user is idle and the room is not focused
+
+Poor fits:
+
+- visible daily missions
+- streak preservation
+- collectable rewards
+- upgrade trees
+- explicit relationship meters
+- management loops that make the room feel like work
 
 ## Object Lenses
 
@@ -175,7 +218,7 @@ Generation invariants:
 - save final assets locally under `asset/`
 - do not overwrite existing assets unless replacement is requested
 - update `asset/pieces/manifest.json` when adding lens pieces
-- verify desktop/laptop and mobile browser readability
+- verify desktop/laptop browser readability
 
 For sprites and props, prefer true transparent PNG/WebP or a clean chroma-key source followed by local background removal. Do not ship a white-background sprite as a final composited asset unless it is intentionally framed as paper/photo.
 

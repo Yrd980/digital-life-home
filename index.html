@@ -55,7 +55,7 @@
           <div class="room-layer floating-ui">
             <section class="miri-bubble" data-bubble-tone="neutral" aria-live="polite">
               <div class="speaker-row"><span>Miri</span><small data-live="stamp">room</small></div>
-              <div class="miri-line" data-live="latest">I am here. Touch the room, or leave a whisper.</div>
+              <div class="miri-line" data-live="latest">I am here. The room is awake.</div>
               <pre class="live-result bubble-result" data-live="result"></pre>
             </section>
 
@@ -70,15 +70,10 @@
         <button class="drawer-scrim" type="button" data-panel-close aria-label="Close"></button>
         <section class="object-lens">
           <header>
-            <span data-panel-title>Miri</span>
+            <span data-panel-title>Pinned scraps</span>
             <button type="button" data-panel-close aria-label="Close">X</button>
           </header>
-          <div class="drawer-panel is-active" data-panel="talk" data-panel-label="Miri">
-            <form class="talk-form" data-local-talk>
-              <input name="prompt" placeholder="Say something to Miri">
-            </form>
-          </div>
-          <div class="drawer-panel" data-panel="pinboard" data-panel-label="Pinned scraps">
+          <div class="drawer-panel is-active" data-panel="pinboard" data-panel-label="Pinned scraps">
             <div class="piece-map piece-map-pinboard">
               <figure class="piece-map-item" style="--piece-x:9.77%;--piece-y:6.84%;--piece-w:23.17%;--piece-h:39.25%;" title="to do list"><img src="asset/pieces/todo-list.webp" alt="to do list"></figure>
               <figure class="piece-map-item" style="--piece-x:38.15%;--piece-y:4.30%;--piece-w:24.74%;--piece-h:39.45%;" title="thank you"><img src="asset/pieces/thank-you.webp" alt="thank you"></figure>
@@ -86,12 +81,12 @@
               <figure class="piece-map-item" style="--piece-x:19.01%;--piece-y:53.52%;--piece-w:28.91%;--piece-h:36.52%;" title="desk polaroid"><img src="asset/pieces/polaroid-desk.webp" alt="desk polaroid"></figure>
               <figure class="piece-map-item" style="--piece-x:49.35%;--piece-y:53.52%;--piece-w:24.74%;--piece-h:36.52%;" title="daily checklist"><img src="asset/pieces/daily-checklist.webp" alt="daily checklist"></figure>
             </div>
-            <p class="lens-copy">Five scraps are pinned close enough to touch. Leave one visible note for this visit.</p>
+            <p class="lens-copy">Five paper scraps lean under warm pins.</p>
             <form class="note-form" data-local-note>
-              <input name="note" placeholder="Pin a visible note">
+              <input name="note" placeholder="pin one short note">
               <button type="submit">Pin</button>
             </form>
-            <p class="pin-note" data-pin-note>Waiting for one real note.</p>
+            <p class="pin-note" data-pin-note>The board is holding still.</p>
           </div>
           <div class="drawer-panel" data-panel="shelf" data-panel-label="Shelf objects">
             <div class="piece-map piece-map-shelf">
@@ -104,15 +99,15 @@
               <figure class="piece-map-item" style="--piece-x:52.60%;--piece-y:53.52%;--piece-w:20.45%;--piece-h:37.89%;" title="cable bundle"><img src="asset/pieces/cable-bundle.webp" alt="cable bundle"></figure>
               <figure class="piece-map-item" style="--piece-x:78.65%;--piece-y:53.52%;--piece-w:16.92%;--piece-h:38.08%;" title="mini robot"><img src="asset/pieces/mini-robot.webp" alt="mini robot"></figure>
             </div>
-            <p class="lens-copy">Tap an object once. It answers inside the bubble, then settles back on the shelf.</p>
+            <p class="lens-copy">Small objects keep their own little answers.</p>
           </div>
           <div class="drawer-panel" data-panel="daily" data-panel-label="Marked day">
             <section class="daily-card" style="--turn-light:64%">
               <img class="room-piece daily-scrap" src="asset/pieces/daily-checklist.webp" alt="daily checklist" loading="lazy">
-              <h2>Keep the room awake</h2>
-              <p>Touch one object, then leave one short whisper.</p>
+              <h2>A warm mark</h2>
+              <p>The day's paper is holding one quiet check.</p>
               <div class="turn-meter" aria-hidden="true"><span></span></div>
-              <button type="button" data-local-action="daily">Mark bright</button>
+              <button type="button" data-local-action="daily">Warm mark</button>
             </section>
           </div>
           <div class="drawer-panel" data-panel="body" data-panel-label="Body lights">

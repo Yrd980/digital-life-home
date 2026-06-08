@@ -1,45 +1,31 @@
-const PHASES = {
-  '/ask': ['opening mind channel', 'listening to Miri', 'writing chat trace'],
-  '/bridge': ['reading body room', 'bridging to Miri', 'saving next move'],
-  '/doorbell': ['opening door', 'checking pulse', 'leaving visit trace'],
-  '/note': ['pinning room note', 'writing room state', 'leaving visible trace'],
-  '/hunt': ['looking around', 'finding a small thing', 'refreshing shelf'],
-  '/craft': ['checking shelf', 'crafting charm', 'saving trace'],
-  '/today': ['reading daily', 'marking turn', 'saving trace']
-};
-
-const SHELL_PATHS = new Set(JSON.parse(document.body.dataset.shellPaths || '[]'));
 const ROOM_PHASES = ['dawn', 'day', 'evening', 'night'];
 const MIRI_IDLE_STATES = ['listening', 'looking', 'reading', 'typing'];
+const ACTION_LINES = {
+  knock: 'The door answers with a soft little knock.',
+  find: 'Dust gathers on the rug. Something tiny wants to be found.',
+  craft: 'The craft bench gives one warm spark.',
+  daily: 'The marked day glows brighter.',
+  note: 'A new scrap joins the pinboard.',
+  talk: 'Miri listens. The room keeps the whisper.'
+};
+const PIECE_REACTIONS = {
+  'coffee mug': 'The mug gives off a tiny warm breath.',
+  'open notebook': 'The notebook waits on a half-written line.',
+  'tiny keyboard': 'The tiny keyboard clicks once.',
+  cassette: 'The cassette catches a purple glint.',
+  'small screwdriver': 'The screwdriver rolls a careful quarter turn.',
+  'star bottle': 'The star bottle twinkles from inside.',
+  'cable bundle': 'The cable bundle curls back into place.',
+  'mini robot': 'The mini robot blinks in place.',
+  'to do list': 'The checklist looks freshly touched.',
+  'thank you': 'The thank-you note feels warmer.',
+  'photo note': 'The photo note leans toward the room.',
+  'desk polaroid': 'The polaroid remembers lamplight.',
+  'daily checklist': 'The daily mark gives one small tick.'
+};
+
 let miriIdleTimer = 0;
-
-function actionPath(path) {
-  if (path.startsWith('/web/')) return path.slice('/web'.length) || '/';
-  if (path === '/web') return '/';
-  return path;
-}
-
-function setThinking(text) {
-  const phase = document.querySelector("[data-live='phase']");
-  if (phase) phase.textContent = text || '';
-}
-
-function phaseTicker(path) {
-  const phases = PHASES[path] || ['waking', 'thinking', 'writing trace'];
-  let index = 0;
-  setThinking(phases[index]);
-  return setInterval(() => {
-    index = Math.min(index + 1, phases.length - 1);
-    setThinking(phases[index]);
-  }, 1600);
-}
-
-function setPageClass(main) {
-  const marker = main.querySelector('[data-page-class]');
-  if (!marker) return;
-  main.className = 'web-main ' + marker.dataset.pageClass;
-  marker.remove();
-}
+let actionTimer = 0;
 
 function room() {
   return document.querySelector('[data-room]');
@@ -51,6 +37,14 @@ function bubble() {
 
 function airPrompt() {
   return document.querySelector('[data-air-prompt-form]');
+}
+
+function liveLine() {
+  return document.querySelector("[data-live='latest']");
+}
+
+function resultBox() {
+  return document.querySelector("[data-live='result']");
 }
 
 function currentRoomPhase(date = new Date()) {
@@ -66,35 +60,15 @@ function setRoomPhase(phase = currentRoomPhase()) {
   if (!currentRoom || !ROOM_PHASES.includes(phase)) return;
   ROOM_PHASES.forEach((item) => currentRoom.classList.toggle('is-' + item, item === phase));
   currentRoom.dataset.runtimePhase = phase;
-}
-
-function syncRuntimePhase() {
-  setRoomPhase(currentRoomPhase());
-}
-
-function applyLivePayload(data) {
-  if (!data) return;
-  const stamp = document.querySelector("[data-live='stamp']");
-  const latest = document.querySelector("[data-live='latest']");
-  const currentRoom = room();
-  if (latest && (data.web_reply || data.reply || data.web_latest || data.latest)) {
-    latest.textContent = data.web_reply || data.reply || data.web_latest || data.latest;
-  }
-  if (stamp && data.time) stamp.textContent = data.time;
-  if (currentRoom) {
-    if (data.room_phase) setRoomPhase(data.room_phase);
-    if (data.miri_state) currentRoom.dataset.miriState = data.miri_state;
-    currentRoom.classList.toggle('has-relics', Number(data.relic_count || 0) > 0);
-    currentRoom.classList.toggle('has-stash', Number(data.stash_count || 0) > 0);
-    currentRoom.classList.toggle('has-notes', Number(data.note_count || 0) > 0);
-  }
-  if (data.bubble_tone && bubble()) bubble().dataset.bubbleTone = data.bubble_tone;
+  const photo = currentRoom.querySelector('.room-photo');
+  if (photo) photo.src = phase === 'night' ? 'asset/room-night.jpg' : 'asset/room-light.jpg';
 }
 
 function chooseMiriIdleState() {
   const currentRoom = room();
   if (!currentRoom) return 'listening';
   if (currentRoom.classList.contains('is-speaking')) return 'listening';
+  if (currentRoom.classList.contains('is-busy')) return 'typing';
   if (currentRoom.dataset.runtimePhase === 'night' && Math.random() < 0.35) return 'dozing';
   return MIRI_IDLE_STATES[Math.floor(Math.random() * MIRI_IDLE_STATES.length)];
 }
@@ -110,7 +84,19 @@ function scheduleMiriIdle(delay = 1200) {
 
 function setHotspot(name = '') {
   const currentRoom = room();
-  if (currentRoom) currentRoom.dataset.hotspot = name;
+  if (!currentRoom) return;
+  currentRoom.dataset.hotspot = name;
+  const attention = {
+    miri: 'listening',
+    door: 'looking',
+    pinboard: 'reading',
+    shelf: 'looking',
+    daily: 'reading',
+    body: 'thinking',
+    floor: 'looking',
+    craft: 'typing'
+  };
+  if (attention[name]) currentRoom.dataset.miriIdle = attention[name];
 }
 
 function setPointerGlow(event) {
@@ -131,6 +117,28 @@ function clearPointerGlow(event) {
   const nextStage = event.relatedTarget?.closest?.('.game-stage');
   if (nextStage === stage) return;
   stage.closest?.('[data-room]')?.classList.remove('is-pointer-active');
+}
+
+function setBubble(text, result = '') {
+  const latest = liveLine();
+  const resultTarget = resultBox();
+  if (latest && text) latest.textContent = text;
+  if (resultTarget) resultTarget.textContent = result;
+  const stamp = document.querySelector("[data-live='stamp']");
+  if (stamp) stamp.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+
+function pulseAction(name) {
+  const currentRoom = room();
+  if (!currentRoom) return;
+  window.clearTimeout(actionTimer);
+  currentRoom.classList.add('is-busy', `is-action-${name}`);
+  currentRoom.dataset.miriIdle = name === 'knock' ? 'looking' : 'typing';
+  setBubble(ACTION_LINES[name] || 'The room answers softly.');
+  actionTimer = window.setTimeout(() => {
+    currentRoom.classList.remove('is-busy', `is-action-${name}`);
+    currentRoom.dataset.miriIdle = 'listening';
+  }, 900);
 }
 
 function showAirPrompt(seed = '') {
@@ -179,7 +187,7 @@ function openRoomPanel(name) {
     currentRoom.classList.add('is-focused');
     currentRoom.dataset.focus = name;
     currentRoom.dataset.hotspot = name;
-    currentRoom.dataset.miriIdle = 'looking';
+    currentRoom.dataset.miriIdle = name === 'daily' ? 'reading' : 'looking';
   }
   drawer.hidden = false;
 }
@@ -198,86 +206,54 @@ function closeRoomPanel() {
   }
 }
 
-async function refreshVitals() {
-  try {
-    const res = await fetch('/api/live', {cache: 'no-store'});
-    if (!res.ok) return;
-    const data = await res.json();
-    applyLivePayload(data);
-  } catch (_) {}
-}
-
-async function submitAction(form) {
-  const path = actionPath(form.getAttribute('action') || '/ask');
-  const resultBox = document.querySelector("[data-live='result']");
-  const buttons = Array.from(form.querySelectorAll('button'));
-  const ticker = phaseTicker(path);
-  room()?.classList.add('is-busy');
-  buttons.forEach((button) => button.disabled = true);
-  try {
-    const res = await fetch('/api' + path, {method: 'POST', body: new FormData(form)});
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    if (resultBox) resultBox.textContent = data.web_result || data.result || '';
-    applyLivePayload(data.live || data);
-    if (form.matches('[data-air-prompt-form]')) {
-      form.reset();
-      form.querySelector('input')?.blur();
-      hideAirPrompt(1300);
-    }
-    setThinking('done');
-  } catch (error) {
-    if (resultBox) resultBox.textContent = 'Action failed: ' + (error && error.message ? error.message : error);
-    setThinking('failed');
-  } finally {
-    clearInterval(ticker);
-    buttons.forEach((button) => button.disabled = false);
-    room()?.classList.remove('is-busy');
-  }
-}
-
-async function navigateRoom(path, push = true) {
-  const clean = path || '/';
-  if (!SHELL_PATHS.has(clean)) {
-    window.location.href = clean;
+function submitWhisper(form) {
+  const input = form.querySelector('input');
+  const text = input?.value.trim() || '';
+  if (!text) {
+    input?.blur();
+    hideAirPrompt(0);
     return;
   }
-  const main = document.querySelector('.web-main');
-  if (!main) {
-    window.location.href = clean;
-    return;
+  setBubble('Miri keeps your whisper close.', text);
+  pulseAction('talk');
+  form.reset();
+  input?.blur();
+  hideAirPrompt(700);
+}
+
+function pinLocalNote(form) {
+  const input = form.querySelector('input');
+  const text = input?.value.trim() || '';
+  if (!text) return;
+  const list = document.querySelector('[data-pin-list]');
+  if (list) {
+    if (list.children.length === 1 && list.textContent.includes('waiting')) list.textContent = '';
+    const item = document.createElement('li');
+    item.textContent = text;
+    list.prepend(item);
   }
-  main.setAttribute('aria-busy', 'true');
-  try {
-    const res = await fetch(clean + '?partial=1', {cache: 'no-store'});
-    if (!res.ok) throw new Error('navigation failed');
-    main.innerHTML = await res.text();
-    setPageClass(main);
-    if (push) history.pushState({path: clean}, '', clean);
-    await refreshVitals();
-    syncRuntimePhase();
-    scheduleMiriIdle();
-  } catch (_) {
-    window.location.href = clean;
-  } finally {
-    main.removeAttribute('aria-busy');
-  }
+  form.reset();
+  pulseAction('note');
+}
+
+function pokePiece(figure) {
+  const label = figure.getAttribute('title') || figure.querySelector('img')?.alt || 'object';
+  figure.classList.remove('is-poked');
+  void figure.offsetWidth;
+  figure.classList.add('is-poked');
+  setBubble(PIECE_REACTIONS[label] || 'The object gives a tiny answer.');
 }
 
 document.addEventListener('submit', (event) => {
   const form = event.target;
-  if (form && form.matches("[data-action='async']")) {
+  if (!form) return;
+  if (form.matches('[data-air-prompt-form], [data-local-talk]')) {
     event.preventDefault();
-    if (form.matches('[data-air-prompt-form]')) {
-      const input = form.querySelector('input');
-      if (!input || !input.value.trim()) {
-        form.reset();
-        input?.blur();
-        hideAirPrompt(0);
-        return;
-      }
-    }
-    submitAction(form);
+    submitWhisper(form);
+  }
+  if (form.matches('[data-local-note]')) {
+    event.preventDefault();
+    pinLocalNote(form);
   }
 });
 
@@ -286,6 +262,18 @@ document.addEventListener('click', (event) => {
   if (panelTarget) {
     event.preventDefault();
     openRoomPanel(panelTarget.dataset.panelTarget);
+    return;
+  }
+  const localAction = event.target.closest('[data-local-action]');
+  if (localAction) {
+    event.preventDefault();
+    pulseAction(localAction.dataset.localAction || 'touch');
+    return;
+  }
+  const piece = event.target.closest('.piece-map-item');
+  if (piece) {
+    event.preventDefault();
+    pokePiece(piece);
     return;
   }
   if (event.target.closest('[data-air-prompt]')) {
@@ -351,8 +339,6 @@ document.addEventListener('focusout', (event) => {
   if (event.target.closest?.('[data-air-prompt-form]')) hideAirPrompt(1600);
 });
 
-window.addEventListener('popstate', () => navigateRoom(window.location.pathname, false));
-syncRuntimePhase();
+setRoomPhase();
 scheduleMiriIdle();
-window.setInterval(syncRuntimePhase, 60000);
-setInterval(refreshVitals, 7000);
+window.setInterval(setRoomPhase, 60000);

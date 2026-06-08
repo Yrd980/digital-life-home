@@ -444,6 +444,12 @@ body {
   filter: drop-shadow(0 20px 18px #0008) drop-shadow(0 0 14px #76e2d242);
 }
 
+.game-room[data-miri-idle='thinking'] .miri-character {
+  --miri-y: -2px;
+  --miri-tilt: 1.5deg;
+  filter: drop-shadow(0 20px 18px #0008) drop-shadow(0 0 16px #b98cff44);
+}
+
 .game-room[data-miri-idle='dozing'] .miri-character,
 .game-room[data-miri-state='sleepy'] .miri-character {
   --miri-y: 5px;
@@ -648,6 +654,10 @@ body {
 
 .game-room.is-speaking .miri-bubble {
   transform: translateX(-50%) translateY(-8px);
+}
+
+.game-room.is-busy .miri-bubble {
+  box-shadow: 0 18px 38px #0005, 0 0 30px #f0c96a22, inset 0 1px 0 #fff2d018;
 }
 
 .speaker-row {
@@ -899,6 +909,19 @@ button:disabled {
   filter: drop-shadow(0 9px 10px #0007);
 }
 
+.piece-map-item {
+  cursor: pointer;
+  transition: transform .18s ease, filter .18s ease;
+}
+
+.piece-map-item:hover {
+  filter: brightness(1.08);
+}
+
+.piece-map-item.is-poked {
+  animation: piece-poke .42s ease;
+}
+
 .piece-map-shelf .piece-map-item {
   transform: scale(.93);
 }
@@ -1092,6 +1115,98 @@ button:disabled {
   }
   50% {
     scale: 1.012;
+  }
+}
+
+.game-room.is-action-knock {
+  --hotspot-left: 12%;
+  --hotspot-top: 30%;
+  --hotspot-width: 20%;
+  --hotspot-height: 36%;
+}
+
+.game-room.is-action-find {
+  --hotspot-left: 50%;
+  --hotspot-top: 78%;
+  --hotspot-width: 46%;
+  --hotspot-height: 24%;
+}
+
+.game-room.is-action-craft {
+  --hotspot-left: 86%;
+  --hotspot-top: 54%;
+  --hotspot-width: 24%;
+  --hotspot-height: 24%;
+}
+
+.game-room.is-action-daily {
+  --hotspot-left: 68%;
+  --hotspot-top: 20%;
+  --hotspot-width: 20%;
+  --hotspot-height: 24%;
+}
+
+.game-room.is-action-note {
+  --hotspot-left: 50%;
+  --hotspot-top: 16%;
+  --hotspot-width: 30%;
+  --hotspot-height: 24%;
+}
+
+.game-room.is-action-talk {
+  --hotspot-left: 50%;
+  --hotspot-top: 68%;
+  --hotspot-width: 26%;
+  --hotspot-height: 30%;
+}
+
+.game-room[class*='is-action-'] .hotspot-glow {
+  opacity: .95;
+  transform: translate(-50%, -50%) scale(1.08);
+  animation: action-pulse .75s ease;
+}
+
+.game-room.is-action-craft .fx-tiny-spark,
+.game-room.is-action-find .fx-tiny-spark,
+.game-room.is-action-daily .fx-tiny-spark {
+  animation: action-spark .75s ease;
+}
+
+@keyframes action-pulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(.72);
+  }
+  35% {
+    opacity: .95;
+  }
+  100% {
+    opacity: .1;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+@keyframes action-spark {
+  0% {
+    opacity: 0;
+    transform: scale(.4);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.55);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(.8);
+  }
+}
+
+@keyframes piece-poke {
+  0%, 100% {
+    transform: scale(.96) rotate(0deg);
+  }
+  45% {
+    transform: scale(1.02) rotate(-1.5deg);
   }
 }
 

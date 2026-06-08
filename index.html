@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Miri Deck UI</title>
+  <link rel="stylesheet" href="asset/surfaces/web.css">
+</head>
+<body class="web-page surface-web" data-shell-paths="[]">
+<main class="web-shell">
+  <section class="web-main deck-room">
+    <section class="game-room is-night" data-room data-room-phase="night" data-miri-state="idle">
+      <section class="game-stage" aria-label="Miri room">
+        <div class="room-frame">
+          <div class="room-layer room-background">
+            <img class="room-photo" src="asset/room-night.jpg" alt="Miri room">
+          </div>
+
+          <div class="room-layer ambient-fx" aria-hidden="true">
+            <span class="fx fx-light-bloom"></span>
+            <span class="fx fx-screen-glow"></span>
+            <span class="fx fx-window-rain"></span>
+            <span class="fx fx-dust fx-dust-a"></span>
+            <span class="fx fx-dust fx-dust-b"></span>
+            <span class="fx fx-tiny-spark"></span>
+          </div>
+
+          <div class="room-layer persistent-items" aria-hidden="true">
+            <span class="floor-item item-paper"></span>
+            <span class="floor-item item-cable"></span>
+            <span class="floor-item item-package"></span>
+            <span class="floor-item item-books"></span>
+          </div>
+
+          <span class="hotspot-glow" data-hotspot-glow aria-hidden="true"></span>
+          <img class="miri-character" src="asset/happy.png" alt="Miri" data-miri-character>
+
+          <div class="room-layer hotspot-layer">
+            <button class="ambient-zone zone-miri" type="button" data-air-prompt data-hotspot="miri" aria-label="Speak near Miri"></button>
+            <button class="ambient-zone zone-knock" type="button" data-local-action="knock" data-hotspot="door" aria-label="Knock"></button>
+            <button class="ambient-zone zone-pinboard" type="button" data-panel-target="pinboard" data-hotspot="pinboard" aria-label="Open Pinboard"></button>
+            <button class="ambient-zone zone-shelf" type="button" data-panel-target="shelf" data-hotspot="shelf" aria-label="Open Shelf"></button>
+            <button class="ambient-zone zone-daily" type="button" data-panel-target="daily" data-hotspot="daily" aria-label="Open Daily"></button>
+            <button class="ambient-zone zone-body" type="button" data-panel-target="body" data-hotspot="body" aria-label="Open Body"></button>
+            <button class="ambient-zone zone-find" type="button" data-local-action="find" data-hotspot="floor" aria-label="Find"></button>
+            <button class="ambient-zone zone-craft" type="button" data-local-action="craft" data-hotspot="craft" aria-label="Craft"></button>
+          </div>
+
+          <div class="room-layer foreground-layer" aria-hidden="true">
+            <span class="foreground-prop foreground-desk-edge"></span>
+            <span class="foreground-prop foreground-cable"></span>
+            <span class="foreground-prop foreground-lamp-blur"></span>
+          </div>
+
+          <div class="room-layer floating-ui">
+            <section class="miri-bubble" data-bubble-tone="neutral" aria-live="polite">
+              <div class="speaker-row"><span>Miri</span><small data-live="stamp">room</small></div>
+              <div class="miri-line" data-live="latest">I am here. Touch the room, or leave a whisper.</div>
+              <pre class="live-result bubble-result" data-live="result"></pre>
+            </section>
+
+            <form class="air-prompt" data-air-prompt-form>
+              <input name="prompt" autocomplete="off" placeholder="leave a whisper">
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <aside class="room-drawer" data-room-drawer hidden>
+        <button class="drawer-scrim" type="button" data-panel-close aria-label="Close"></button>
+        <section class="object-lens">
+          <header>
+            <span data-panel-title>Miri</span>
+            <button type="button" data-panel-close aria-label="Close">X</button>
+          </header>
+          <div class="drawer-panel is-active" data-panel="talk" data-panel-label="Miri">
+            <form class="talk-form" data-local-talk>
+              <input name="prompt" placeholder="Say something to Miri">
+            </form>
+          </div>
+          <div class="drawer-panel" data-panel="pinboard" data-panel-label="Pinned scraps">
+            <div class="piece-map piece-map-pinboard">
+              <figure class="piece-map-item" style="--piece-x:9.77%;--piece-y:6.84%;--piece-w:23.17%;--piece-h:39.25%;" title="to do list"><img src="asset/pieces/todo-list.webp" alt="to do list"></figure>
+              <figure class="piece-map-item" style="--piece-x:38.15%;--piece-y:4.30%;--piece-w:24.74%;--piece-h:39.45%;" title="thank you"><img src="asset/pieces/thank-you.webp" alt="thank you"></figure>
+              <figure class="piece-map-item" style="--piece-x:69.01%;--piece-y:7.62%;--piece-w:26.04%;--piece-h:37.89%;" title="photo note"><img src="asset/pieces/photo-note.webp" alt="photo note"></figure>
+              <figure class="piece-map-item" style="--piece-x:19.01%;--piece-y:53.52%;--piece-w:28.91%;--piece-h:36.52%;" title="desk polaroid"><img src="asset/pieces/polaroid-desk.webp" alt="desk polaroid"></figure>
+              <figure class="piece-map-item" style="--piece-x:49.35%;--piece-y:53.52%;--piece-w:24.74%;--piece-h:36.52%;" title="daily checklist"><img src="asset/pieces/daily-checklist.webp" alt="daily checklist"></figure>
+            </div>
+            <form class="note-form" data-local-note>
+              <input name="note" placeholder="Pin a visible note">
+              <button type="submit">Pin</button>
+            </form>
+            <p class="pin-hint">Visible scraps only. The room keeps the feeling, not a backend memory.</p>
+            <ul class="pin-list" data-pin-list><li>The pinboard is waiting for one real note.</li></ul>
+          </div>
+          <div class="drawer-panel" data-panel="shelf" data-panel-label="Shelf objects">
+            <div class="piece-map piece-map-shelf">
+              <figure class="piece-map-item" style="--piece-x:2.21%;--piece-y:8.98%;--piece-w:22.92%;--piece-h:39.26%;" title="coffee mug"><img src="asset/pieces/coffee-mug.webp" alt="coffee mug"></figure>
+              <figure class="piece-map-item" style="--piece-x:27.21%;--piece-y:8.20%;--piece-w:21.75%;--piece-h:40.24%;" title="open notebook"><img src="asset/pieces/open-notebook.webp" alt="open notebook"></figure>
+              <figure class="piece-map-item" style="--piece-x:49.48%;--piece-y:8.01%;--piece-w:22.92%;--piece-h:40.23%;" title="tiny keyboard"><img src="asset/pieces/tiny-keyboard.webp" alt="tiny keyboard"></figure>
+              <figure class="piece-map-item" style="--piece-x:77.08%;--piece-y:9.38%;--piece-w:18.75%;--piece-h:38.62%;" title="cassette"><img src="asset/pieces/cassette.webp" alt="cassette"></figure>
+              <figure class="piece-map-item" style="--piece-x:2.21%;--piece-y:52.73%;--piece-w:21.49%;--piece-h:38.48%;" title="small screwdriver"><img src="asset/pieces/small-screwdriver.webp" alt="small screwdriver"></figure>
+              <figure class="piece-map-item" style="--piece-x:28.65%;--piece-y:52.73%;--piece-w:18.49%;--piece-h:38.68%;" title="star bottle"><img src="asset/pieces/star-bottle.webp" alt="star bottle"></figure>
+              <figure class="piece-map-item" style="--piece-x:52.60%;--piece-y:53.52%;--piece-w:20.45%;--piece-h:37.89%;" title="cable bundle"><img src="asset/pieces/cable-bundle.webp" alt="cable bundle"></figure>
+              <figure class="piece-map-item" style="--piece-x:78.65%;--piece-y:53.52%;--piece-w:16.92%;--piece-h:38.08%;" title="mini robot"><img src="asset/pieces/mini-robot.webp" alt="mini robot"></figure>
+            </div>
+            <div class="stash-grid" data-shelf-notes>
+              <article class="stash-item"><span>touch</span><b>Shelf is warm</b><p>Tap any object for a tiny local reaction.</p></article>
+            </div>
+          </div>
+          <div class="drawer-panel" data-panel="daily" data-panel-label="Marked day">
+            <section class="daily-card" style="--turn-light:64%">
+              <img class="room-piece daily-scrap" src="asset/pieces/daily-checklist.webp" alt="daily checklist" loading="lazy">
+              <h2>Keep the room awake</h2>
+              <p>Touch one object, then leave one short whisper.</p>
+              <div class="turn-meter" aria-hidden="true"><span></span></div>
+              <small>local UI branch / static interaction / no backend state</small>
+              <button type="button" data-local-action="daily">Mark bright</button>
+            </section>
+          </div>
+          <div class="drawer-panel" data-panel="body" data-panel-label="Body lights">
+            <div class="body-portrait"><img class="room-piece body-scrap" src="asset/pieces/mini-robot.webp" alt="mini robot" loading="lazy"></div>
+            <div class="body-grid room-body-grid">
+              <article><span>presence</span><b>open</b><small>static web room</small></article>
+              <article><span>window</span><b>browser</b><small>local assets</small></article>
+              <article><span>light</span><b>night glow</b><small>room phase</small></article>
+              <article><span>memory</span><b>none</b><small>UI-only branch</small></article>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </section>
+  </section>
+</main>
+<script src="asset/surfaces/pocket-room.js" defer></script>
+</body>
+</html>

@@ -1,20 +1,16 @@
 # AGENTS.md
 
-Miri Deck is a tiny physical home for a digital life.
+This branch is UI-only.
 
-Current product truth:
+Product truth:
 
-- Miri is the digital life.
-- Cloud GPT is Miri's mind-power.
-- WalnutPi ZeroW is Miri's body.
-- Pocket Soul Deck is Miri's room and body system: TUI, web room, state, logs, screen, keyboard, toys, rituals, and scripts.
-- Miri has broad agency inside the device. Design features as abilities, organs, rituals, or toys.
-- The WalnutPi screen can only display English reliably.
-- Do not add compatibility code for old identities or split-persona routes.
+- Miri is the only visible life.
+- The browser page is a static interactive room.
+- `asset/room-light.jpg` and `asset/room-night.jpg` are the canonical room backgrounds.
+- Baked room labels are spatial affordances, not decoration.
+- Do not add backend, TUI, device-service, runtime-state, or mind-daemon code to this branch.
+- Do not reintroduce command catalogs, dashboards, split-persona routes, or compatibility UI.
+- Use generated bitmap assets only when they preserve the existing room/Miri identity and are saved locally under `asset/`.
+- Keep code small, static, and dependency-light.
+- Use `bun` for local JS tooling.
 - Do not add tests unless explicitly requested.
-- Use `bun` for JS/TS projects and `uv` for Python projects.
-- Use Context7 for official docs when external library docs are needed.
-- Keep code small, high-extension, and local-first.
-- Favor reusable scripts over one-off shell incantations.
-
-Use SSH target `walnutpi` as `root` when deploying to the device.

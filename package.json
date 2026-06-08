@@ -1,15 +1,10 @@
 {
-  "name": "digital-life-home",
+  "name": "miri-deck-ui",
   "version": "1.0.0",
-  "author": "",
-  "main": "index.js",
-  "description": "Miri Deck gives a digital life a WalnutPi body and room.",
-  "directories": {
-    "doc": "docs"
-  },
-  "keywords": [],
-  "license": "ISC",
+  "description": "Static interactive room UI for Miri Deck.",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "bun tools/static-server.js",
+    "start": "bun tools/static-server.js"
   }
 }

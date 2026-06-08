@@ -9,7 +9,7 @@
 <body class="web-page surface-web" data-shell-paths="[]">
 <main class="web-shell">
   <section class="web-main deck-room">
-    <section class="game-room is-night" data-room data-room-phase="night" data-miri-state="idle">
+    <section class="game-room is-night" data-room data-room-phase="night" data-miri-state="happy">
       <section class="game-stage" aria-label="Miri room">
         <div class="room-frame">
           <div class="room-layer room-background">
@@ -86,12 +86,12 @@
               <figure class="piece-map-item" style="--piece-x:19.01%;--piece-y:53.52%;--piece-w:28.91%;--piece-h:36.52%;" title="desk polaroid"><img src="asset/pieces/polaroid-desk.webp" alt="desk polaroid"></figure>
               <figure class="piece-map-item" style="--piece-x:49.35%;--piece-y:53.52%;--piece-w:24.74%;--piece-h:36.52%;" title="daily checklist"><img src="asset/pieces/daily-checklist.webp" alt="daily checklist"></figure>
             </div>
+            <p class="lens-copy">Five scraps are pinned close enough to touch. Leave one visible note for this visit.</p>
             <form class="note-form" data-local-note>
               <input name="note" placeholder="Pin a visible note">
               <button type="submit">Pin</button>
             </form>
-            <p class="pin-hint">Visible scraps only. The room keeps the feeling, not a backend memory.</p>
-            <ul class="pin-list" data-pin-list><li>The pinboard is waiting for one real note.</li></ul>
+            <p class="pin-note" data-pin-note>Waiting for one real note.</p>
           </div>
           <div class="drawer-panel" data-panel="shelf" data-panel-label="Shelf objects">
             <div class="piece-map piece-map-shelf">
@@ -104,9 +104,7 @@
               <figure class="piece-map-item" style="--piece-x:52.60%;--piece-y:53.52%;--piece-w:20.45%;--piece-h:37.89%;" title="cable bundle"><img src="asset/pieces/cable-bundle.webp" alt="cable bundle"></figure>
               <figure class="piece-map-item" style="--piece-x:78.65%;--piece-y:53.52%;--piece-w:16.92%;--piece-h:38.08%;" title="mini robot"><img src="asset/pieces/mini-robot.webp" alt="mini robot"></figure>
             </div>
-            <div class="stash-grid" data-shelf-notes>
-              <article class="stash-item"><span>touch</span><b>Shelf is warm</b><p>Tap any object for a tiny local reaction.</p></article>
-            </div>
+            <p class="lens-copy">Tap an object once. It answers inside the bubble, then settles back on the shelf.</p>
           </div>
           <div class="drawer-panel" data-panel="daily" data-panel-label="Marked day">
             <section class="daily-card" style="--turn-light:64%">
@@ -114,18 +112,13 @@
               <h2>Keep the room awake</h2>
               <p>Touch one object, then leave one short whisper.</p>
               <div class="turn-meter" aria-hidden="true"><span></span></div>
-              <small>local UI branch / static interaction / no backend state</small>
               <button type="button" data-local-action="daily">Mark bright</button>
             </section>
           </div>
           <div class="drawer-panel" data-panel="body" data-panel-label="Body lights">
             <div class="body-portrait"><img class="room-piece body-scrap" src="asset/pieces/mini-robot.webp" alt="mini robot" loading="lazy"></div>
-            <div class="body-grid room-body-grid">
-              <article><span>presence</span><b>open</b><small>static web room</small></article>
-              <article><span>window</span><b>browser</b><small>local assets</small></article>
-              <article><span>light</span><b>night glow</b><small>room phase</small></article>
-              <article><span>memory</span><b>none</b><small>UI-only branch</small></article>
-            </div>
+            <p class="lens-copy body-copy">The room body feels like warm glass and a small teal pulse under the desk light.</p>
+            <button class="lens-action" type="button" data-local-action="body">Feel pulse</button>
           </div>
         </section>
       </aside>

@@ -193,6 +193,74 @@ const COMBO_REACTIONS = [
     line: 'The notebook nudges the pinned paper into a quiet answer.'
   }
 ];
+const SESSION_SEEDS = [
+  {
+    key: 'door',
+    touch: 'door',
+    className: 'seed-door',
+    surface: 'knock',
+    gaze: 'door',
+    idle: 'looking',
+    mood: 'think',
+    tone: 'think',
+    line: 'The door was listening for that.'
+  },
+  {
+    key: 'daily',
+    touch: 'talk',
+    className: 'seed-daily',
+    surface: 'daily',
+    gaze: 'daily',
+    idle: 'reading',
+    mood: 'calm',
+    tone: 'system',
+    line: 'Today makes the whisper land softer.'
+  },
+  {
+    key: 'body',
+    touch: 'body',
+    className: 'seed-body',
+    surface: 'body',
+    gaze: 'body',
+    idle: 'thinking',
+    mood: 'calm',
+    tone: 'system',
+    line: 'The teal pulse was waiting under the room.'
+  },
+  {
+    key: 'pinboard',
+    touch: 'pinboard',
+    className: 'seed-pinboard',
+    surface: 'pinboard',
+    gaze: 'pinboard',
+    idle: 'reading',
+    mood: 'calm',
+    tone: 'think',
+    line: 'The pinned scraps answer in a small paper hush.'
+  },
+  {
+    key: 'shelf',
+    touch: 'shelf',
+    className: 'seed-shelf',
+    surface: 'shelf',
+    gaze: 'shelf',
+    idle: 'looking',
+    mood: 'happy',
+    tone: 'think',
+    line: 'The restless shelf gives a second tiny wobble.'
+  },
+  {
+    key: 'craft',
+    touch: 'craft',
+    className: 'seed-craft',
+    surface: 'craft',
+    gaze: 'craft',
+    idle: 'typing',
+    mood: 'happy',
+    tone: 'system',
+    line: 'One hidden spark catches before the tools go quiet.'
+  }
+];
 const PIECE_MOTIONS = {
   'coffee mug': 'warm',
   'open notebook': 'page',
@@ -229,6 +297,9 @@ let ambientSurpriseTimer = 0;
 let touchHistory = [];
 let knockHistory = [];
 let bodyHoldTimer = 0;
+let settleTimer = 0;
+let sessionSeed = null;
+let sessionSeedUsed = false;
 
 function room() {
   return document.querySelector('[data-room]');
@@ -292,6 +363,13 @@ function clearRecentTouch() {
   window.clearTimeout(recentTouchTimer);
 }
 
+function chooseSessionSeed() {
+  sessionSeed = sample(SESSION_SEEDS);
+  sessionSeedUsed = false;
+  const currentRoom = room();
+  if (currentRoom && sessionSeed) currentRoom.dataset.sessionSeed = sessionSeed.key;
+}
+
 function noteTouchTempo() {
   const now = Date.now();
   touchHistory = touchHistory.filter((time) => now - time < 2600);
@@ -319,6 +397,26 @@ function setRoomSurface(name, duration = 1400) {
   surfaceTimer = window.setTimeout(() => {
     currentRoom.classList.remove(`is-surface-${name}`);
   }, duration);
+}
+
+function settleRoom(delay = 1500) {
+  const currentRoom = room();
+  if (!currentRoom) return;
+  window.clearTimeout(settleTimer);
+  settleTimer = window.setTimeout(() => {
+    if (
+      currentRoom.classList.contains('is-focused') ||
+      currentRoom.classList.contains('is-speaking') ||
+      currentRoom.classList.contains('is-busy') ||
+      currentRoom.classList.contains('is-pointer-active')
+    ) {
+      return;
+    }
+    clearActionClasses(currentRoom, 'is-surface-');
+    currentRoom.dataset.hotspot = '';
+    currentRoom.dataset.miriGaze = '';
+    setMiriIdleState('listening');
+  }, delay);
 }
 
 function setMiriGaze(target = '', duration = 1600) {
@@ -367,6 +465,28 @@ function triggerCombo(combo, result = '') {
   comboTimer = window.setTimeout(() => {
     currentRoom.classList.remove('is-busy', `is-combo-${combo.className}`);
     setMiriIdleState('listening');
+    settleRoom(500);
+  }, 1900);
+  return true;
+}
+
+function maybeTriggerSeedEcho(touchKey, result = '') {
+  const currentRoom = room();
+  if (!currentRoom || !sessionSeed || sessionSeedUsed || touchKey !== sessionSeed.touch) return false;
+  sessionSeedUsed = true;
+  window.clearTimeout(comboTimer);
+  clearActionClasses(currentRoom, 'is-combo-');
+  currentRoom.classList.add('is-busy', `is-combo-${sessionSeed.className}`);
+  setRoomSurface(sessionSeed.surface, 1900);
+  setMiriGaze(sessionSeed.gaze, 1900);
+  setMiriIdleState(sessionSeed.idle || 'looking');
+  setMiriMood(sessionSeed.mood || 'happy');
+  setBubble(sessionSeed.line, result, sessionSeed.tone || 'neutral');
+  clearRecentTouch();
+  comboTimer = window.setTimeout(() => {
+    currentRoom.classList.remove('is-busy', `is-combo-${sessionSeed.className}`);
+    setMiriIdleState('listening');
+    settleRoom(500);
   }, 1900);
   return true;
 }
@@ -548,6 +668,7 @@ function pulseAction(name, result = '') {
   }
   const combo = comboFor(touchKey);
   if (combo && triggerCombo(combo, result)) return;
+  if (maybeTriggerSeedEcho(touchKey, result)) return;
   if (maybeReactToRapidTouch()) {
     rememberTouch(touchKey);
     return;
@@ -579,6 +700,7 @@ function pulseAction(name, result = '') {
   actionTimer = window.setTimeout(() => {
     currentRoom.classList.remove('is-busy', `is-action-${name}`);
     setMiriIdleState('listening');
+    settleRoom(500);
   }, 1300);
 }
 
@@ -618,6 +740,8 @@ function showAirPrompt(seed = '') {
   }
   if (combo) {
     triggerCombo(combo);
+  } else if (maybeTriggerSeedEcho('talk')) {
+    // The echo owns the bubble line; the prompt still opens for the user.
   } else {
     if (!seed) setBubble(sample(MIRI_TOUCH_LINES), '', 'system');
     maybeReactToRapidTouch();
@@ -649,8 +773,13 @@ function openRoomPanel(name) {
   const drawer = document.querySelector('[data-room-drawer]');
   if (!drawer) return;
   const combo = comboFor(name);
+  let echoTriggered = false;
   if (combo && triggerCombo(combo)) {
     rememberTouch(name);
+    echoTriggered = true;
+  } else if (maybeTriggerSeedEcho(name)) {
+    rememberTouch(name);
+    echoTriggered = true;
   } else {
     rememberTouch(name);
     maybeReactToRapidTouch();
@@ -666,11 +795,11 @@ function openRoomPanel(name) {
     currentRoom.classList.add('is-focused');
     currentRoom.dataset.focus = name;
     currentRoom.dataset.hotspot = name;
-    currentRoom.dataset.miriGaze = name;
+    if (!echoTriggered) currentRoom.dataset.miriGaze = name;
     setRoomSurface(name, 1200);
-    setMiriIdleState(name === 'daily' || name === 'pinboard' ? 'reading' : 'looking');
+    if (!echoTriggered) setMiriIdleState(name === 'daily' || name === 'pinboard' ? 'reading' : 'looking');
   }
-  if (!combo) setBubble(sample(PANEL_LINES[name]) || 'The room leans closer.');
+  if (!echoTriggered) setBubble(sample(PANEL_LINES[name]) || 'The room leans closer.');
   drawer.hidden = false;
 }
 
@@ -695,6 +824,7 @@ function closeRoomPanel() {
       currentRoom.classList.remove('is-lens-settling');
       if (!currentRoom.classList.contains('is-focused') && !currentRoom.classList.contains('is-busy')) {
         setMiriIdleState('listening');
+        settleRoom(400);
       }
     }, 1100);
   }
@@ -733,12 +863,17 @@ function pokePiece(figure) {
     rememberTouch(touchKey);
     return;
   }
+  const areaTouch = label.includes('note') || label.includes('list') ? 'pinboard' : 'shelf';
+  if (maybeTriggerSeedEcho(areaTouch)) {
+    rememberTouch(touchKey);
+    return;
+  }
   if (maybeReactToRapidTouch()) {
     rememberTouch(touchKey);
     return;
   }
   setRoomSurface(PIECE_MOTIONS[label] || 'piece', 1200);
-  setMiriGaze(label.includes('note') || label.includes('list') ? 'pinboard' : 'shelf', 1300);
+  setMiriGaze(areaTouch, 1300);
   setBubble(sample(PIECE_REACTIONS[label]) || 'The object gives a tiny answer.', '', 'think');
   setMiriIdleState(label === 'daily checklist' || label.includes('note') || label.includes('list') ? 'reading' : 'looking');
   rememberTouch(touchKey);
@@ -867,6 +1002,7 @@ document.addEventListener('focusout', (event) => {
 });
 
 setRoomPhase();
+chooseSessionSeed();
 setMiriMood('happy');
 scheduleMiriIdle();
 scheduleAmbientSurprise(12000 + Math.random() * 12000);

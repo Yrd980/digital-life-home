@@ -1368,19 +1368,49 @@ button:disabled {
   --hotspot-height: 36%;
 }
 
+.game-room.is-combo-seed-door {
+  --hotspot-left: 12%;
+  --hotspot-top: 30%;
+  --hotspot-width: 22%;
+  --hotspot-height: 36%;
+}
+
 .game-room.is-combo-daily-talk,
-.game-room.is-surface-daily-talk {
+.game-room.is-surface-daily-talk,
+.game-room.is-combo-seed-daily {
   --hotspot-left: 68%;
   --hotspot-top: 20%;
   --hotspot-width: 22%;
   --hotspot-height: 24%;
 }
 
-.game-room.is-combo-notebook-pinboard {
+.game-room.is-combo-notebook-pinboard,
+.game-room.is-combo-seed-pinboard {
   --hotspot-left: 50%;
   --hotspot-top: 16%;
   --hotspot-width: 32%;
   --hotspot-height: 24%;
+}
+
+.game-room.is-combo-seed-shelf {
+  --hotspot-left: 28%;
+  --hotspot-top: 38%;
+  --hotspot-width: 22%;
+  --hotspot-height: 26%;
+}
+
+.game-room.is-combo-seed-body {
+  --hotspot-left: 62%;
+  --hotspot-top: 48%;
+  --hotspot-width: 20%;
+  --hotspot-height: 22%;
+}
+
+.game-room.is-combo-seed-craft {
+  --hotspot-left: 86%;
+  --hotspot-top: 54%;
+  --hotspot-width: 25%;
+  --hotspot-height: 25%;
 }
 
 .game-room[class*='is-action-'] .hotspot-glow,
@@ -1404,7 +1434,8 @@ button:disabled {
 }
 
 .game-room.is-action-knock .zone-knock::after,
-.game-room.is-surface-knock .zone-knock::after {
+.game-room.is-surface-knock .zone-knock::after,
+.game-room.is-combo-seed-door .zone-knock::after {
   opacity: .8;
   border: 1px solid #b98cff78;
   animation: knock-ripple .48s ease;
@@ -1420,6 +1451,7 @@ button:disabled {
 
 .game-room.is-action-craft .foreground-cable,
 .game-room.is-surface-shelf .zone-shelf::before,
+.game-room.is-combo-seed-shelf .zone-shelf::before,
 .game-room.is-surface-warm .zone-shelf::before,
 .game-room.is-surface-page .zone-shelf::before,
 .game-room.is-surface-tap .zone-shelf::before,
@@ -1438,13 +1470,15 @@ button:disabled {
 }
 
 .game-room.is-surface-body .zone-body::before,
-.game-room.is-surface-blink .zone-body::before {
+.game-room.is-surface-blink .zone-body::before,
+.game-room.is-combo-seed-body .zone-body::before {
   opacity: .54;
   animation: body-breath-peek 1.1s ease;
 }
 
 .game-room.is-surface-craft .zone-craft::before,
-.game-room.is-surface-sparkle .zone-craft::before {
+.game-room.is-surface-sparkle .zone-craft::before,
+.game-room.is-combo-seed-craft .zone-craft::before {
   opacity: .85;
   animation: tiny-spark-peek .8s ease;
 }
@@ -1478,19 +1512,23 @@ button:disabled {
 }
 
 .game-room.is-surface-daily .room-background::after,
-.game-room.is-combo-daily-talk .room-background::after {
+.game-room.is-combo-daily-talk .room-background::after,
+.game-room.is-combo-seed-daily .room-background::after {
   opacity: 1;
   animation: warm-room-afterglow 1.3s ease;
 }
 
 .game-room.is-surface-body .room-background::after,
-.game-room.is-surface-blink .room-background::after {
+.game-room.is-surface-blink .room-background::after,
+.game-room.is-combo-seed-body .room-background::after {
   opacity: 1;
   animation: teal-room-afterglow 1.35s ease;
 }
 
 .game-room.is-surface-craft .foreground-cable,
-.game-room.is-surface-craft .foreground-lamp-blur {
+.game-room.is-surface-craft .foreground-lamp-blur,
+.game-room.is-combo-seed-craft .foreground-cable,
+.game-room.is-combo-seed-craft .foreground-lamp-blur {
   animation: craft-settle 1.1s ease;
 }
 
@@ -1499,7 +1537,8 @@ button:disabled {
 }
 
 .game-room.is-combo-notebook-pinboard .piece-map-pinboard,
-.game-room.is-combo-notebook-pinboard .zone-pinboard::before {
+.game-room.is-combo-notebook-pinboard .zone-pinboard::before,
+.game-room.is-combo-seed-pinboard .zone-pinboard::before {
   animation: paper-answer 1.1s ease;
 }
 

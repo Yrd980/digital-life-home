@@ -145,6 +145,34 @@ Use these principles when adding new interactions:
 - Miri is present, not controllable: Miri may follow attention, doze, react to interruption, or soften a whisper, but should not become a commandable avatar.
 - Local and reversible: interaction state should be session-only unless the user explicitly asks for persistence.
 
+## Game Loop Closure
+
+The room loop is tactile and short-session. It should close in 20 seconds to two minutes without becoming a task system.
+
+Loop shape:
+
+1. Entry mood: each page visit quietly chooses one session-only room seed, such as Door listening, Daily warm, Shelf restless, Body sleepy, Pinboard loose, or Craft sparking.
+2. Material touch: the user touches an object and gets a physical response, Miri attention, and one short bubble line.
+3. Hidden echo: if the touch matches the room seed, or if a related second touch happens inside the short session window, the room gives one special response.
+4. Settle: the room returns to quiet through afterglow, Miri easing back, and no visible reward state.
+
+Closure rules:
+
+- no visible objective, mission, quest, or checklist
+- no score, XP, streak, inventory, currency, relationship meter, hunger, or affection value
+- no punishment for leaving or ignoring the room
+- no permanent state unless explicitly requested later
+- no explicit combo list; combinations are discovered through response
+- seed and echo state are session-only browser memory
+
+Good loop examples:
+
+- knock quickly, then touch Miri: Miri looks at the door before returning to you
+- Daily warms, then a whisper lands softer
+- notebook is poked, then Pinboard answers with a paper shift
+- Body is held, then the room settles into a slow teal afterglow
+- Shelf is restless, then a mug, cable, or bottle gives a second echo
+
 Good next-play candidates:
 
 - slow hover near Miri makes her quietly track the pointer

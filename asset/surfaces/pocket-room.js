@@ -1,6 +1,7 @@
 const ROOM_PHASES = ['dawn', 'day', 'evening', 'night'];
 const MIRI_IDLE_STATES = ['listening', 'looking', 'reading', 'typing'];
 const RECENT_TOUCH_WINDOW = 5000;
+const SESSION_LOOP_WINDOW = 24000;
 const ACTION_LINES = {
   knock: [
     'The door answers with a short wooden tap.',
@@ -261,6 +262,86 @@ const SESSION_SEEDS = [
     line: 'One hidden spark catches before the tools go quiet.'
   }
 ];
+const SESSION_LOOPS = [
+  {
+    key: 'door',
+    start: ['door'],
+    follow: ['miri', 'talk'],
+    className: 'loop-door',
+    surface: 'door-miri',
+    gaze: 'door',
+    idle: 'looking',
+    mood: 'think',
+    tone: 'think',
+    hint: 'The door keeps that knock for a moment.',
+    line: 'The knock finds Miri, then the whole room exhales.'
+  },
+  {
+    key: 'daily',
+    start: ['daily'],
+    follow: ['talk', 'miri'],
+    className: 'loop-daily',
+    surface: 'daily-talk',
+    gaze: 'daily',
+    idle: 'reading',
+    mood: 'calm',
+    tone: 'system',
+    hint: 'The warm mark waits under the next whisper.',
+    line: 'The day folds the whisper into one warm mark.'
+  },
+  {
+    key: 'pinboard',
+    start: ['pinboard', 'piece:open notebook', 'piece:daily checklist'],
+    follow: ['pinboard', 'note', 'daily', 'piece:open notebook', 'piece:daily checklist', 'piece:photo note', 'piece:desk polaroid'],
+    className: 'loop-pinboard',
+    surface: 'notebook-pinboard',
+    gaze: 'pinboard',
+    idle: 'reading',
+    mood: 'calm',
+    tone: 'think',
+    hint: 'Paper remembers the last touch.',
+    line: 'The scraps, notebook, and marked day answer as one page.'
+  },
+  {
+    key: 'shelf',
+    start: ['shelf', 'piece:coffee mug', 'piece:star bottle', 'piece:cable bundle'],
+    follow: ['shelf', 'craft', 'piece:coffee mug', 'piece:star bottle', 'piece:cable bundle', 'piece:small screwdriver', 'piece:tiny keyboard', 'piece:cassette'],
+    className: 'loop-shelf',
+    surface: 'shelf',
+    gaze: 'shelf',
+    idle: 'looking',
+    mood: 'happy',
+    tone: 'think',
+    hint: 'The shelf holds a tiny wobble in reserve.',
+    line: 'The shelf passes the wobble from object to object, then settles.'
+  },
+  {
+    key: 'body',
+    start: ['body'],
+    follow: ['body', 'miri', 'talk'],
+    className: 'loop-body',
+    surface: 'body',
+    gaze: 'body',
+    idle: 'thinking',
+    mood: 'calm',
+    tone: 'system',
+    hint: 'A teal pulse waits under the room.',
+    line: 'The teal pulse reaches Miri, softens, and goes quiet.'
+  },
+  {
+    key: 'craft',
+    start: ['craft', 'piece:small screwdriver', 'piece:tiny keyboard'],
+    follow: ['craft', 'shelf', 'piece:cable bundle', 'piece:star bottle', 'piece:small screwdriver', 'piece:tiny keyboard'],
+    className: 'loop-craft',
+    surface: 'craft',
+    gaze: 'craft',
+    idle: 'typing',
+    mood: 'happy',
+    tone: 'system',
+    hint: 'One small spark is still looking for a place to land.',
+    line: 'The spark lands in the tools and leaves the desk warmer.'
+  }
+];
 const PIECE_MOTIONS = {
   'coffee mug': 'warm',
   'open notebook': 'page',
@@ -300,6 +381,8 @@ let bodyHoldTimer = 0;
 let settleTimer = 0;
 let sessionSeed = null;
 let sessionSeedUsed = false;
+let sessionLoop = null;
+let sessionLoopTimer = 0;
 
 function room() {
   return document.querySelector('[data-room]');
@@ -370,6 +453,86 @@ function chooseSessionSeed() {
   if (currentRoom && sessionSeed) currentRoom.dataset.sessionSeed = sessionSeed.key;
 }
 
+function loopIncludes(list, touchKey) {
+  return list.includes(touchKey);
+}
+
+function loopCanStart(path, touchKey) {
+  return loopIncludes(path.start, touchKey) || loopIncludes(path.follow, touchKey);
+}
+
+function loopCanClose(path, touchKey) {
+  if (!path || !touchKey) return false;
+  if (touchKey === sessionLoop?.lastTouch) return path.key === 'body' && touchKey === 'body';
+  return loopIncludes(path.follow, touchKey) || loopIncludes(path.start, touchKey);
+}
+
+function clearSessionLoop(delay = 0) {
+  const currentRoom = room();
+  window.clearTimeout(sessionLoopTimer);
+  sessionLoopTimer = window.setTimeout(() => {
+    sessionLoop = null;
+    if (!currentRoom) return;
+    currentRoom.classList.remove('is-loop-listening', 'is-loop-complete');
+    clearActionClasses(currentRoom, 'is-loop-');
+    currentRoom.dataset.loop = '';
+    currentRoom.dataset.loopState = '';
+  }, delay);
+}
+
+function startSessionLoop(path, touchKey) {
+  const currentRoom = room();
+  if (!currentRoom || !path) return;
+  sessionLoop = {key: path.key, lastTouch: touchKey, openedAt: Date.now()};
+  window.clearTimeout(sessionLoopTimer);
+  clearActionClasses(currentRoom, 'is-loop-');
+  currentRoom.classList.remove('is-loop-complete');
+  currentRoom.classList.add('is-loop-listening', `is-loop-${path.key}`);
+  currentRoom.dataset.loop = path.key;
+  currentRoom.dataset.loopState = 'listening';
+  setRoomSurface(path.surface || path.key, 1500);
+  sessionLoopTimer = window.setTimeout(() => clearSessionLoop(), SESSION_LOOP_WINDOW + 1800);
+}
+
+function triggerSessionLoop(path, result = '') {
+  const currentRoom = room();
+  if (!currentRoom || !path) return false;
+  window.clearTimeout(comboTimer);
+  window.clearTimeout(sessionLoopTimer);
+  clearActionClasses(currentRoom, 'is-combo-');
+  clearActionClasses(currentRoom, 'is-loop-');
+  currentRoom.classList.remove('is-loop-listening');
+  currentRoom.classList.add('is-busy', 'is-loop-complete', `is-loop-${path.key}`, `is-combo-${path.className}`);
+  currentRoom.dataset.loop = path.key;
+  currentRoom.dataset.loopState = 'complete';
+  setRoomSurface(path.surface || path.key, 2200);
+  setMiriGaze(path.gaze, 2200);
+  setMiriIdleState(path.idle || 'looking');
+  setMiriMood(path.mood || 'happy');
+  setBubble(path.line, result, path.tone || 'neutral');
+  clearRecentTouch();
+  sessionLoop = null;
+  comboTimer = window.setTimeout(() => {
+    currentRoom.classList.remove('is-busy', 'is-loop-complete', `is-loop-${path.key}`, `is-combo-${path.className}`);
+    currentRoom.dataset.loop = '';
+    currentRoom.dataset.loopState = '';
+    setMiriIdleState('listening');
+    settleRoom(500);
+  }, 2200);
+  return true;
+}
+
+function advanceSessionLoop(touchKey, result = '') {
+  if (!touchKey) return false;
+  const activePath = sessionLoop && SESSION_LOOPS.find((path) => path.key === sessionLoop.key);
+  if (activePath && Date.now() - sessionLoop.openedAt < SESSION_LOOP_WINDOW + 1800 && loopCanClose(activePath, touchKey)) {
+    return triggerSessionLoop(activePath, result);
+  }
+  const nextPath = SESSION_LOOPS.find((path) => loopCanStart(path, touchKey));
+  if (nextPath) startSessionLoop(nextPath, touchKey);
+  return false;
+}
+
 function noteTouchTempo() {
   const now = Date.now();
   touchHistory = touchHistory.filter((time) => now - time < 2600);
@@ -415,6 +578,10 @@ function settleRoom(delay = 1500) {
     clearActionClasses(currentRoom, 'is-surface-');
     currentRoom.dataset.hotspot = '';
     currentRoom.dataset.miriGaze = '';
+    if (!sessionLoop) {
+      currentRoom.classList.remove('is-loop-listening');
+      currentRoom.dataset.loopState = '';
+    }
     setMiriIdleState('listening');
   }, delay);
 }
@@ -668,6 +835,7 @@ function pulseAction(name, result = '') {
   }
   const combo = comboFor(touchKey);
   if (combo && triggerCombo(combo, result)) return;
+  if (advanceSessionLoop(touchKey, result)) return;
   if (maybeTriggerSeedEcho(touchKey, result)) return;
   if (maybeReactToRapidTouch()) {
     rememberTouch(touchKey);
@@ -738,7 +906,9 @@ function showAirPrompt(seed = '') {
     currentRoom.dataset.hotspot = 'miri';
     setMiriIdleState('listening');
   }
-  if (combo) {
+  if (advanceSessionLoop('miri')) {
+    // The closed loop owns the bubble line; the prompt still opens for the user.
+  } else if (combo) {
     triggerCombo(combo);
   } else if (maybeTriggerSeedEcho('talk')) {
     // The echo owns the bubble line; the prompt still opens for the user.
@@ -775,6 +945,9 @@ function openRoomPanel(name) {
   const combo = comboFor(name);
   let echoTriggered = false;
   if (combo && triggerCombo(combo)) {
+    rememberTouch(name);
+    echoTriggered = true;
+  } else if (advanceSessionLoop(name)) {
     rememberTouch(name);
     echoTriggered = true;
   } else if (maybeTriggerSeedEcho(name)) {
@@ -860,6 +1033,10 @@ function pokePiece(figure) {
   const combo = comboFor(touchKey);
   setPieceMotion(figure, label);
   if (combo && triggerCombo(combo)) {
+    rememberTouch(touchKey);
+    return;
+  }
+  if (advanceSessionLoop(touchKey)) {
     rememberTouch(touchKey);
     return;
   }

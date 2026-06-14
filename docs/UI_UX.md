@@ -153,8 +153,9 @@ Loop shape:
 
 1. Entry mood: each page visit quietly chooses one session-only room seed, such as Door listening, Daily warm, Shelf restless, Body sleepy, Pinboard loose, or Craft sparking.
 2. Material touch: the user touches an object and gets a physical response, Miri attention, and one short bubble line.
-3. Hidden echo: if the touch matches the room seed, or if a related second touch happens inside the short session window, the room gives one special response.
-4. Settle: the room returns to quiet through afterglow, Miri easing back, and no visible reward state.
+3. Listening arc: the first meaningful touch opens a short hidden arc. The room should feel like it is holding that touch for a moment.
+4. Hidden echo: if a related second touch happens inside the short session window, the room gives one complete response across object motion, Miri attention, bubble copy, and room afterglow.
+5. Settle: the room returns to quiet through afterglow, Miri easing back, and no visible reward state.
 
 Closure rules:
 
@@ -163,7 +164,15 @@ Closure rules:
 - no punishment for leaving or ignoring the room
 - no permanent state unless explicitly requested later
 - no explicit combo list; combinations are discovered through response
-- seed and echo state are session-only browser memory
+- seed, arc, and echo state are session-only browser memory
+
+Playable closure rules:
+
+- every major area can start a short hidden arc: Door, Daily, Pinboard, Shelf, Body, Craft, or Miri whisper
+- a related second touch closes the arc; unrelated touches can simply start a different arc
+- the closed arc must feel larger than a normal touch: room wash, hotspot motion, Miri gaze, sprite mood, and a specific line
+- completion does not unlock a menu, marker, badge, checklist, score, or permanent record
+- after completion, the room should become quiet enough that entering again still feels fresh
 
 Good loop examples:
 

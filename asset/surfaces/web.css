@@ -1415,10 +1415,62 @@ button:disabled {
 
 .game-room[class*='is-action-'] .hotspot-glow,
 .game-room[class*='is-combo-'] .hotspot-glow,
+.game-room.is-loop-listening .hotspot-glow,
+.game-room.is-loop-complete .hotspot-glow,
 .game-room[class*='is-surface-'] .hotspot-glow {
   opacity: .95;
   transform: translate(-50%, -50%) scale(1.08);
   animation: action-pulse .75s ease;
+}
+
+.game-room.is-loop-listening .room-background::after {
+  opacity: .72;
+  animation: loop-listen-wash 1.4s ease;
+}
+
+.game-room.is-loop-complete .room-background::after {
+  opacity: 1;
+  animation: loop-complete-wash 2.1s ease;
+}
+
+.game-room.is-loop-listening .miri-bubble {
+  box-shadow: 0 18px 38px #0005, 0 0 24px #f0c96a1c, inset 0 1px 0 #fff2d018;
+}
+
+.game-room.is-loop-complete .miri-bubble {
+  animation: loop-bubble-land 1.1s ease;
+}
+
+.game-room.is-loop-door .zone-knock::after,
+.game-room.is-loop-door .room-photo {
+  animation: combo-door-room 1.4s ease;
+}
+
+.game-room.is-loop-daily .zone-daily::before {
+  opacity: .82;
+  animation: daily-check-peek .9s ease;
+}
+
+.game-room.is-loop-pinboard .zone-pinboard::before,
+.game-room.is-loop-pinboard .piece-map-pinboard {
+  animation: paper-answer 1.1s ease;
+}
+
+.game-room.is-loop-shelf .zone-shelf::before {
+  opacity: .82;
+  animation: shelf-wobble .7s ease;
+}
+
+.game-room.is-loop-body .zone-body::before,
+.game-room.is-loop-body .fx-screen-glow {
+  opacity: .72;
+  animation: body-pulse 1.1s ease;
+}
+
+.game-room.is-loop-craft .foreground-cable,
+.game-room.is-loop-craft .foreground-lamp-blur,
+.game-room.is-loop-craft .fx-tiny-spark {
+  animation: craft-settle 1.1s ease;
 }
 
 .game-room.is-action-craft .fx-tiny-spark,
@@ -1557,6 +1609,45 @@ button:disabled {
   100% {
     opacity: .1;
     transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+@keyframes loop-listen-wash {
+  0% {
+    opacity: .12;
+  }
+  45% {
+    opacity: .68;
+  }
+  100% {
+    opacity: .28;
+  }
+}
+
+@keyframes loop-complete-wash {
+  0% {
+    opacity: .18;
+    filter: saturate(1);
+  }
+  35% {
+    opacity: 1;
+    filter: saturate(1.24);
+  }
+  100% {
+    opacity: .24;
+    filter: saturate(1);
+  }
+}
+
+@keyframes loop-bubble-land {
+  0% {
+    transform: translateX(-50%) translateY(0) scale(.98);
+  }
+  36% {
+    transform: translateX(-50%) translateY(-10px) scale(1.015);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
